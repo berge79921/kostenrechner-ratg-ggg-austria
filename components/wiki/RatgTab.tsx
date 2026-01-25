@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ExternalLink, FileText, ChevronDown, ChevronUp, Info } from 'lucide-react';
-import { RIS_LINKS, RATG_TARIFPOSTEN, RATG_PARAGRAPHEN, RATG_TARIFE, RATG_TAGSATZUNG, RATG_TP_DETAILS, RATG_FORMELN, RATG_RUNDUNG } from '../../lib/wiki-data';
+import { RIS_LINKS, RATG_TARIFPOSTEN, RATG_PARAGRAPHEN, RATG_TARIFE, RATG_TAGSATZUNG, RATG_TP_DETAILS, RATG_FORMELN, RATG_RUNDUNG, RATG_TP5_BRIEFE, RATG_TP6_BRIEFE, RATG_TP7_KOMMISSIONEN, RATG_TP567_HINWEISE } from '../../lib/wiki-data';
 
 export const RatgTab: React.FC = () => {
   const [showFullTarif, setShowFullTarif] = useState(false);
@@ -8,6 +8,7 @@ export const RatgTab: React.FC = () => {
   const [showTpDetails, setShowTpDetails] = useState(false);
   const [showFormeln1, setShowFormeln1] = useState(false);
   const [showFormeln2, setShowFormeln2] = useState(false);
+  const [showTp567, setShowTp567] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -349,6 +350,116 @@ export const RatgTab: React.FC = () => {
               <p>• Angaben pro Stunde Verhandlungsdauer</p>
               <p>• Ab der 2. Stunde nur halber Satz</p>
               <p>• Einheitssatz zusätzlich auf Gesamtsumme</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* TP 5, 6, 7 - Briefe und Kommissionen */}
+      <div>
+        <button
+          onClick={() => setShowTp567(!showTp567)}
+          className="flex items-center justify-between w-full mb-4"
+        >
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">TP 5, 6, 7 – Briefe & Kommissionen</p>
+          {showTp567 ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+        </button>
+        {showTp567 && (
+          <div className="space-y-6">
+            {/* TP 5 und TP 6 Tabelle */}
+            <div className="rounded-2xl border border-white/10 overflow-hidden overflow-x-auto">
+              <div className="bg-white/5 p-3 border-b border-white/10">
+                <span className="font-bold text-white">TP 5 & TP 6 – Briefe</span>
+                <span className="text-xs text-slate-500 ml-2">(streitwertabhängig)</span>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-white/5 border-b border-white/10">
+                  <tr>
+                    <th className="text-left p-3 font-bold text-white">Streitwert bis</th>
+                    <th className="text-right p-3 font-bold text-emerald-400">TP 5 (kurz)</th>
+                    <th className="text-right p-3 font-bold text-teal-400">TP 6 (andere)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {RATG_TP5_BRIEFE.slice(0, 12).map((row, i) => (
+                    <tr key={i} className="hover:bg-white/5">
+                      <td className="p-3 font-mono text-slate-300">€ {row.bis.toLocaleString('de-AT')}</td>
+                      <td className="p-3 text-right font-mono text-emerald-400">€ {row.tp5.toFixed(2)}</td>
+                      <td className="p-3 text-right font-mono text-teal-400">€ {RATG_TP6_BRIEFE[i]?.tp6.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-white/5">
+                    <td colSpan={3} className="p-2 text-center text-xs text-slate-500">
+                      ... weitere Stufen bis € 43.510
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* TP 7 Tabelle */}
+            <div className="rounded-2xl border border-white/10 overflow-hidden overflow-x-auto">
+              <div className="bg-white/5 p-3 border-b border-white/10">
+                <span className="font-bold text-white">TP 7 – Kommissionen</span>
+                <span className="text-xs text-slate-500 ml-2">(pro ½ Stunde)</span>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-white/5 border-b border-white/10">
+                  <tr>
+                    <th className="text-left p-3 font-bold text-white">Streitwert bis</th>
+                    <th className="text-right p-3 font-bold text-orange-400">RA-Gehilfe</th>
+                    <th className="text-right p-3 font-bold text-red-400">RA / RAA</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {RATG_TP7_KOMMISSIONEN.slice(0, 10).map((row, i) => (
+                    <tr key={i} className="hover:bg-white/5">
+                      <td className="p-3 font-mono text-slate-300">€ {row.bis.toLocaleString('de-AT')}</td>
+                      <td className="p-3 text-right font-mono text-orange-400">€ {row.gehilfe.toFixed(2)}</td>
+                      <td className="p-3 text-right font-mono text-red-400">€ {row.raRaa.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-white/5">
+                    <td colSpan={3} className="p-2 text-center text-xs text-slate-500">
+                      ... weitere Stufen bis € 21.760
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Hinweise */}
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 space-y-3">
+              <h4 className="font-bold text-amber-300 text-sm">Hinweise zu TP 5, 6, 7</h4>
+              <ul className="space-y-1.5 text-xs text-amber-200/80">
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400">•</span>
+                  <span>{RATG_TP567_HINWEISE.zuschlag}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400">•</span>
+                  <span>{RATG_TP567_HINWEISE.keinES}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400">•</span>
+                  <span>{RATG_TP567_HINWEISE.keinDoppelES}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400">•</span>
+                  <span>{RATG_TP567_HINWEISE.briefeAusnahme}</span>
+                </li>
+              </ul>
+              <div className="pt-2 border-t border-amber-500/20">
+                <h5 className="font-bold text-amber-300 text-xs mb-2">TP 7 Details:</h5>
+                <ul className="space-y-1 text-xs text-amber-200/70">
+                  {RATG_TP567_HINWEISE.tp7Details.map((detail, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-amber-500/60">–</span>
+                      <span>{detail}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         )}

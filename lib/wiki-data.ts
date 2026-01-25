@@ -58,6 +58,27 @@ export const RATG_TARIFPOSTEN: TarifpostInfo[] = [
     description: 'Revisionen an den OGH',
     examples: ['Ordentliche Revision', 'Außerordentliche Revision', 'Revisionsbeantwortung'],
     level: 'Höchstgericht'
+  },
+  {
+    id: 'TP5',
+    name: 'Tarifpost 5',
+    description: 'Kurze Briefe (streitwertabhängig)',
+    examples: ['Kurze Mitteilungen an Partei', 'Einfache Korrespondenz'],
+    level: 'Briefe'
+  },
+  {
+    id: 'TP6',
+    name: 'Tarifpost 6',
+    description: 'Andere Briefe (Fixbeträge)',
+    examples: ['Ausführliche Schreiben', 'Briefe mit Sachdarstellung'],
+    level: 'Briefe'
+  },
+  {
+    id: 'TP7',
+    name: 'Tarifpost 7',
+    description: 'Kommissionen (pro ½ Stunde)',
+    examples: ['Erhebungen bei Gericht/Behörde', 'Intervention bei Exekution', 'Außergerichtliche Augenscheine'],
+    level: 'Kommissionen'
   }
 ];
 
@@ -222,6 +243,119 @@ export const RATG_TAGSATZUNG = [
   { bis: 10170, tp2: 104.70, tp3a: 208.60, tp3b: 259.70, tp3c: 312.30 },
   { bis: 36340, tp2: 260.70, tp3a: 519.90, tp3b: 649.80, tp3c: 779.40 },
 ];
+
+// TP 5 Kurze Briefe (streitwertabhängig, Stand Mai 2023)
+export const RATG_TP5_BRIEFE = [
+  { bis: 70, tp5: 4.00 },
+  { bis: 180, tp5: 5.30 },
+  { bis: 360, tp5: 6.00 },
+  { bis: 730, tp5: 7.10 },
+  { bis: 1820, tp5: 8.70 },
+  { bis: 2910, tp5: 10.30 },
+  { bis: 4360, tp5: 13.40 },
+  { bis: 5810, tp5: 16.50 },
+  { bis: 7260, tp5: 19.60 },
+  { bis: 8710, tp5: 22.70 },
+  { bis: 10160, tp5: 25.80 },
+  { bis: 11610, tp5: 28.90 },
+  { bis: 13060, tp5: 31.90 },
+  { bis: 14510, tp5: 35.00 },
+  { bis: 15960, tp5: 38.10 },
+  { bis: 17410, tp5: 41.20 },
+  { bis: 18860, tp5: 44.30 },
+  { bis: 20310, tp5: 47.40 },
+  { bis: 21760, tp5: 50.50 },
+  { bis: 23210, tp5: 53.60 },
+  { bis: 24660, tp5: 56.70 },
+  { bis: 26110, tp5: 59.80 },
+  { bis: 27560, tp5: 62.90 },
+  { bis: 29010, tp5: 65.90 },
+  { bis: 30460, tp5: 69.00 },
+  { bis: 31910, tp5: 72.10 },
+  { bis: 33360, tp5: 75.20 },
+  { bis: 34810, tp5: 78.30 },
+  { bis: 36260, tp5: 81.40 },
+  { bis: 37710, tp5: 84.50 },
+  { bis: 39160, tp5: 87.60 },
+  { bis: 40610, tp5: 90.70 },
+  { bis: 42060, tp5: 93.80 },
+  { bis: 43510, tp5: 96.80 },
+];
+
+// TP 6 Andere Briefe (Fixbeträge, Stand Mai 2023)
+export const RATG_TP6_BRIEFE = [
+  { bis: 70, tp6: 8.00 },
+  { bis: 180, tp6: 10.50 },
+  { bis: 360, tp6: 11.90 },
+  { bis: 730, tp6: 14.20 },
+  { bis: 1820, tp6: 17.40 },
+  { bis: 2910, tp6: 20.60 },
+  { bis: 4360, tp6: 26.80 },
+  { bis: 5810, tp6: 33.00 },
+  { bis: 7260, tp6: 39.10 },
+  { bis: 8710, tp6: 45.30 },
+  { bis: 10160, tp6: 51.50 },
+  { bis: 11610, tp6: 57.70 },
+  { bis: 13060, tp6: 63.90 },
+  { bis: 14510, tp6: 70.00 },
+  { bis: 15960, tp6: 76.20 },
+  { bis: 17410, tp6: 82.40 },
+  { bis: 18860, tp6: 88.60 },
+  { bis: 20310, tp6: 94.80 },
+  { bis: 21760, tp6: 101.00 },
+  { bis: 23210, tp6: 107.10 },
+  { bis: 24660, tp6: 113.30 },
+  { bis: 26110, tp6: 119.50 },
+  { bis: 27560, tp6: 125.70 },
+  { bis: 29010, tp6: 131.90 },
+  { bis: 30460, tp6: 138.10 },
+  { bis: 31910, tp6: 144.20 },
+  { bis: 33360, tp6: 150.40 },
+  { bis: 34810, tp6: 156.60 },
+  { bis: 36260, tp6: 162.80 },
+  { bis: 37710, tp6: 169.00 },
+  { bis: 39160, tp6: 175.20 },
+  { bis: 40610, tp6: 181.40 },
+  { bis: 42060, tp6: 187.50 },
+  { bis: 43510, tp6: 193.70 },
+];
+
+// TP 7 Kommissionen (pro ½ Stunde, Stand Mai 2023)
+export const RATG_TP7_KOMMISSIONEN = [
+  { bis: 70, gehilfe: 16.00, raRaa: 32.00 },
+  { bis: 180, gehilfe: 21.10, raRaa: 42.10 },
+  { bis: 360, gehilfe: 23.80, raRaa: 47.50 },
+  { bis: 730, gehilfe: 28.40, raRaa: 56.70 },
+  { bis: 1820, gehilfe: 34.80, raRaa: 69.50 },
+  { bis: 2910, gehilfe: 41.20, raRaa: 82.30 },
+  { bis: 4360, gehilfe: 53.50, raRaa: 107.10 },
+  { bis: 5810, gehilfe: 65.90, raRaa: 131.80 },
+  { bis: 7260, gehilfe: 78.20, raRaa: 156.50 },
+  { bis: 8710, gehilfe: 90.60, raRaa: 181.30 },
+  { bis: 10160, gehilfe: 103.00, raRaa: 205.90 },
+  { bis: 11610, gehilfe: 115.30, raRaa: 230.70 },
+  { bis: 13060, gehilfe: 127.70, raRaa: 255.40 },
+  { bis: 14510, gehilfe: 140.00, raRaa: 280.10 },
+  { bis: 15960, gehilfe: 152.40, raRaa: 304.80 },
+  { bis: 17410, gehilfe: 164.70, raRaa: 329.60 },
+  { bis: 18860, gehilfe: 177.10, raRaa: 354.30 },
+  { bis: 20310, gehilfe: 189.50, raRaa: 379.00 },
+  { bis: 21760, gehilfe: 201.80, raRaa: 403.80 },
+];
+
+// TP 5, 6, 7 Hinweise
+export const RATG_TP567_HINWEISE = {
+  zuschlag: 'Zuschlag für Information aus Akten od. mit Partei: +50% (TP 5 und 6)',
+  keinES: 'Kein Einheitssatz zu TP 5, 6, 8 und 9',
+  keinDoppelES: 'Kein doppelter Einheitssatz zu TP 7',
+  briefeAusnahme: 'Briefe mit Rechtsgutachten oder Verträgen unterliegen nicht dem Tarif',
+  tp7Details: [
+    'TP 7 Abs. 1: Kommissionen außerhalb der Kanzlei durch Gehilfen – niedrigere Gebühr; höhere nur wenn RA/RAA erforderlich',
+    'TP 7 Abs. 2: Intervention bei Ex-Vollzug – im Regelfall höhere Gebühr (RA/RAA)',
+    'TP 7 Abs. 3: Höhere Gebühr auch für Geschäfte außerhalb der Kanzlei (Aktenstudium bei Behörden, außergerichtliche Augenscheine etc.)',
+    'Dazu: Zeit der Hin- und Rückfahrt → Entschädigung für Zeitversäumnis nach TP 9 Z. 4 + Kosten eines Massenbeförderungsmittels',
+  ],
+};
 
 // GGG Tarife alle Tarifposten (Stand April 2025)
 export const GGG_ALLE_TARIFE = {
