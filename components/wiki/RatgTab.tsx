@@ -458,8 +458,8 @@ export const RatgTab: React.FC = () => {
                     <th className="text-left p-2 font-bold text-white">Streitwert bis</th>
                     <th className="text-right p-2 font-bold text-emerald-400">TP 5<br/><span className="font-normal text-slate-500">kurze</span></th>
                     <th className="text-right p-2 font-bold text-teal-400">TP 6<br/><span className="font-normal text-slate-500">andere</span></th>
-                    <th className="text-right p-2 font-bold text-orange-400">TP 7<br/><span className="font-normal text-slate-500">Gehilfe</span></th>
-                    <th className="text-right p-2 font-bold text-red-400">TP 7<br/><span className="font-normal text-slate-500">RA/RAA</span></th>
+                    <th className="text-right p-2 font-bold text-orange-400">TP 7/1<br/><span className="font-normal text-slate-500">Gehilfe</span></th>
+                    <th className="text-right p-2 font-bold text-red-400">TP 7/2<br/><span className="font-normal text-slate-500">RA/RAA</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -490,8 +490,8 @@ export const RatgTab: React.FC = () => {
               <div className="text-xs text-slate-400 space-y-1">
                 <p><strong className="text-emerald-400">TP 5:</strong> € {RATG_TP5_FORMEL.basisWert.toFixed(2)} + € {RATG_TP5_FORMEL.zuschlagWert.toFixed(2)} pro angefangene € {RATG_TP5_FORMEL.zuschlagPro.toLocaleString('de-AT')}</p>
                 <p><strong className="text-teal-400">TP 6:</strong> 2× TP 5</p>
-                <p><strong className="text-orange-400">TP 7 Gehilfe:</strong> = TP 6 (pro ½ Stunde)</p>
-                <p><strong className="text-red-400">TP 7 RA/RAA:</strong> 2× TP 6 (pro ½ Stunde)</p>
+                <p><strong className="text-orange-400">TP 7/1 Gehilfe:</strong> = TP 6 (pro ½ Stunde)</p>
+                <p><strong className="text-red-400">TP 7/2 RA/RAA:</strong> 2× TP 6 (pro ½ Stunde)</p>
               </div>
             </div>
 
