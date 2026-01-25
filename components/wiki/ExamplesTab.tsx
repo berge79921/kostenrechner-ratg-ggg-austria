@@ -39,7 +39,7 @@ const EXAMPLES: Example[] = [
     breakdown: [
       { label: 'Tarifsatz TP 2', value: '€ 52,50', detail: 'RATG Anl. 1, bis € 7.000' },
       { label: 'Einheitssatz 60%', value: '€ 31,50', detail: '§ 23 RATG' },
-      { label: 'ERV-Beitrag', value: '€ 2,10', detail: '§ 23a RATG' },
+      { label: 'ERV-Beitrag', value: '€ 5,00', detail: '§ 23a RATG (verfahrenseinl.)' },
     ],
     total: { netto: 8610, ust: 1722, ggg: 11900, brutto: 22232 }
   },
@@ -56,7 +56,7 @@ const EXAMPLES: Example[] = [
     breakdown: [
       { label: 'Tarifsatz TP 3A', value: '€ 208,80', detail: 'RATG Anl. 1, bis € 36.340' },
       { label: 'Einheitssatz 50%', value: '€ 104,40', detail: '§ 23 RATG (über € 10.170)' },
-      { label: 'ERV-Beitrag', value: '€ 2,10', detail: '§ 23a RATG' },
+      { label: 'ERV-Beitrag', value: '€ 5,00', detail: '§ 23a RATG (verfahrenseinl.)' },
     ],
     total: { netto: 31530, ust: 6306, ggg: 35000, brutto: 72836 }
   },
@@ -75,7 +75,7 @@ const EXAMPLES: Example[] = [
       { label: 'Tarifsatz TP 3B', value: '€ 519,30', detail: 'RATG Anl. 1, bis € 72.680' },
       { label: 'Streitgenossenzuschlag +20%', value: '€ 103,86', detail: '§ 15 RATG (3 Parteien)' },
       { label: 'Einheitssatz 50%', value: '€ 311,58', detail: '§ 23 RATG' },
-      { label: 'ERV-Beitrag', value: '€ 2,10', detail: '§ 23a RATG' },
+      { label: 'ERV-Beitrag', value: '€ 5,00', detail: '§ 23a RATG (verfahrenseinl.)' },
     ],
     total: { netto: 93684, ust: 18737, ggg: 97400, brutto: 209821 }
   },
@@ -92,7 +92,7 @@ const EXAMPLES: Example[] = [
     breakdown: [
       { label: 'Tarifsatz TP 3C', value: '€ 779,40', detail: 'RATG Anl. 1, bis € 145.360' },
       { label: 'Einheitssatz 50%', value: '€ 389,70', detail: '§ 23 RATG' },
-      { label: 'ERV-Beitrag', value: '€ 2,10', detail: '§ 23a RATG' },
+      { label: 'ERV-Beitrag', value: '€ 5,00', detail: '§ 23a RATG (verfahrenseinl.)' },
     ],
     total: { netto: 117120, ust: 23424, ggg: 162600, brutto: 303144 }
   },
