@@ -144,9 +144,20 @@ export const RatgTab: React.FC = () => {
           <div className="space-y-3">
             {Object.entries(RATG_TP_DETAILS).map(([tp, data]) => (
               <div key={tp} className="rounded-xl bg-white/5 border border-white/10 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-mono font-bold text-blue-400">{tp}</span>
-                  <span className="text-sm text-slate-400">{data.kurz}</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-blue-400">{tp}</span>
+                    <span className="text-sm text-slate-400">{data.kurz}</span>
+                  </div>
+                  {data.esRegel && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                      data.esRegel.includes('KEIN')
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    }`}>
+                      {data.esRegel}
+                    </span>
+                  )}
                 </div>
                 <ul className="space-y-1 text-xs text-slate-500">
                   {data.details.map((d, i) => (

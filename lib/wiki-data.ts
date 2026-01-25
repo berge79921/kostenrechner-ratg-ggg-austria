@@ -430,7 +430,7 @@ export const RATG_FORMELN = {
 };
 
 // Detaillierte Tarifpost-Beschreibungen (aus Handtarif)
-export const RATG_TP_DETAILS: Record<string, { kurz: string; details: string[] }> = {
+export const RATG_TP_DETAILS: Record<string, { kurz: string; details: string[]; esRegel?: string }> = {
   TP1: {
     kurz: 'Kurze Schriftsätze und Anträge',
     details: [
@@ -482,6 +482,57 @@ export const RATG_TP_DETAILS: Record<string, { kurz: string; details: string[] }
       'Verhandlungen beim OGH',
       'Parteianträge nach Art. 139 Abs. 1 Z. 4, Art. 139a, Art. 140 Abs. 1 Z. 1 lit. d und Art. 140a B-VG',
     ],
+  },
+  TP5: {
+    kurz: 'Einfache Schreiben (Briefe)',
+    details: [
+      'Mahnschreiben, kurze Berichte',
+      'Einfache Mitteilungen, Einladungen',
+      'Empfangsbestätigungen',
+      '+50% bei Information aus Akten oder mit Partei',
+    ],
+    esRegel: 'KEIN Einheitssatz',
+  },
+  TP6: {
+    kurz: 'Andere Briefe',
+    details: [
+      'Ausführliche Schreiben',
+      'Briefe mit Sachdarstellung',
+      'NICHT: Rechtsgutachten, Vertragsurkunden',
+      '+50% bei Information aus Akten oder mit Partei',
+    ],
+    esRegel: 'KEIN Einheitssatz',
+  },
+  TP7: {
+    kurz: 'Kommissionen (pro ½ Stunde)',
+    details: [
+      'TP 7/1: Geschäfte durch Gehilfen (= TP 6)',
+      'TP 7/2: Durch RA/RAA wenn erforderlich (= 2× TP 6)',
+      'Erhebungen bei Gericht/Behörde',
+      'Intervention bei Exekution',
+      'Außergerichtliche Augenscheine',
+      '+ Zeitversäumnis (TP 9 Z 4) + Massenbeförderungsmittel',
+    ],
+    esRegel: 'Max. EINFACHER Einheitssatz (nicht 60%/50%)',
+  },
+  TP8: {
+    kurz: 'Reisekosten',
+    details: [
+      'Fahrtkosten mit eigenem KFZ',
+      'Massenbeförderungsmittel',
+      'Nächtigung',
+    ],
+    esRegel: 'KEIN Einheitssatz',
+  },
+  TP9: {
+    kurz: 'Barauslagen',
+    details: [
+      'Z 1: Telefongebühren, Porto',
+      'Z 2: Stempel- und Gerichtsgebühren',
+      'Z 3: Kopierkosten',
+      'Z 4: Zeitversäumnis (Wartezeit)',
+    ],
+    esRegel: 'KEIN Einheitssatz',
   },
 };
 
