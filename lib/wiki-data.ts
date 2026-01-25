@@ -265,6 +265,91 @@ export const GGG_ALLE_TARIFE = {
   ]
 };
 
+// Berechnungsformeln für höhere Streitwerte (RATG § 1 Abs. 1)
+export const RATG_FORMELN = {
+  // Stufe 1: Streitwerte über € 36.340 bis € 363.360
+  stufe1: {
+    basis: 36340,
+    obergrenze: 363360,
+    basisTarife: { tp1: 92.20, tp2: 413.00, tp3a: 814.40, tp3b: 1016.20, tp3c: 1219.60 },
+    multiplikatoren: { tp1: 0.10, tp2: 0.50, tp3a: 1.00, tp3b: 1.25, tp3c: 1.50 },
+    // Pro € 1.000 über Basis werden diese Zuschläge addiert
+    zuschlagPro1000: { tp1: 0.10, tp2: 0.50, tp3a: 1.00, tp3b: 1.25, tp3c: 1.50 },
+  },
+  // Stufe 2: Streitwerte über € 363.360
+  stufe2: {
+    basis: 363360,
+    basisTarife: { tp1: 124.90, tp2: 576.50, tp3a: 1141.40, tp3b: 1425.00, tp3c: 1710.10 },
+    multiplikatoren: { tp1: 0.05, tp2: 0.25, tp3a: 0.50, tp3b: 0.625, tp3c: 0.75 },
+    // Maximale Verdienstansätze (Deckelung)
+    maxTarife: { tp1: 260.10, tp2: 1298.50, tp3a: 17308.80, tp3b: 21636.00, tp3c: 25963.10 },
+    // Bei diesen Streitwerten wird Maximum erreicht
+    maxBeiStreitwert: { tp1: 3067360, tp2: 3251360, tp3a: 32698160, tp3b: 32700960, tp3c: 32700693 },
+  },
+};
+
+// Detaillierte Tarifpost-Beschreibungen (aus Handtarif)
+export const RATG_TP_DETAILS: Record<string, { kurz: string; details: string[] }> = {
+  TP1: {
+    kurz: 'Kurze Schriftsätze und Anträge',
+    details: [
+      'Kurze Schriftsätze und Anträge',
+      'Kostenbestimmungsanträge',
+      'Vollmachtsbekanntgaben',
+      'Urgenzschreiben',
+    ],
+  },
+  TP2: {
+    kurz: 'Einfache Klagen, Tagsatzungen',
+    details: [
+      'Einfache Klagen und Schriftsätze',
+      'Kurze verfahrenseinleitende Anträge und kurze Äußerungen dazu',
+      'Exekutionsbewilligungsanträge',
+      'Tagsatzungen (ohne Beweisaufnahme)',
+      'Kurze Grundbuch- und Firmenbucheingaben',
+    ],
+  },
+  TP3A: {
+    kurz: 'Qualifizierte Schriftsätze mit Sachvortrag',
+    details: [
+      'Klagen, Klagebeantwortungen',
+      'Verfahrenseinleitende Schriftsätze und Äußerungen dazu',
+      'Vorbereitende und aufgetragene Schriftsätze mit Sachvorbringen',
+      'Streitverhandlungen, Tagsatzungen mit Beweisaufnahme',
+      'Exekutionsbewilligungsanträge (Vollstreckbarerklärungsanträge) auf Grund ausländischer Titel',
+      'Kostenrekurse und Kostenrekursbeantwortungen',
+      'Anträge auf Erlassung einstweiliger Verfügungen, Äußerungen dazu und Widersprüche',
+      'Befundaufnahmen durch Sachverständige (bei Beiziehung über Gerichtsauftrag)',
+    ],
+  },
+  TP3B: {
+    kurz: 'Rechtsmittel 2. Instanz',
+    details: [
+      'Berufungen, Berufungsbeantwortungen',
+      'Rekurse und Rekursbeantwortungen (außer an OGH und Kostenrekurse)',
+      'Beschwerden',
+      'Berufungsverhandlungen (siehe § 23 Abs. 9)',
+      'Schriftsätze nach § 473a ZPO: die Hälfte von TP 3B',
+    ],
+  },
+  TP3C: {
+    kurz: 'Rechtsmittel 3. Instanz (OGH)',
+    details: [
+      'Revisionen, Revisionsbeantwortungen',
+      'Revisionsrekurse, Revisionsrekursbeantwortungen',
+      'Rekurse und Rekursbeantwortungen an OGH',
+      'Verhandlungen beim OGH',
+      'Parteianträge nach Art. 139 Abs. 1 Z. 4, Art. 139a, Art. 140 Abs. 1 Z. 1 lit. d und Art. 140a B-VG',
+    ],
+  },
+};
+
+// Rundungsregel § 1 Abs. 1 zweiter Satz RATG
+export const RATG_RUNDUNG = {
+  text: 'Die sich aufgrund von im Tarif angeordneten Rechenoperationen ergebenden Tarifsätze sind auf volle 10 Cent auf- oder abzurunden.',
+  paragraph: '§ 1 Abs. 1 zweiter Satz RATG',
+};
+
 export const DISCLAIMER_TEXT = `Dieser Kalkulator ist experimentell. Es wird keine Haftung für die Richtigkeit der Berechnungen übernommen. Die Ergebnisse dienen ausschließlich zu Informationszwecken und ersetzen keine professionelle Rechtsberatung.`;
 
 export const INTRO_TEXT = `Dieser Kalkulator richtet sich an Praktiker und interessierte Rechtsanwender, um die Kostenlogik der österreichischen Tarife transparent zu machen.`;
