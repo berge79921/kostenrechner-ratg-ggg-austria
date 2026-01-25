@@ -960,7 +960,7 @@ const App: React.FC = () => {
                             </div>
                             )}
                             {isTP7 && (
-                              <div className="text-[10px] text-slate-500 px-1">
+                              <div className="text-[11px] text-slate-600 font-medium px-1">
                                 TP 7: Max. einfacher Einheitssatz (§ 23 Abs. 1 RATG)
                               </div>
                             )}
