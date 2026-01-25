@@ -6,7 +6,8 @@ export const RatgTab: React.FC = () => {
   const [showFullTarif, setShowFullTarif] = useState(false);
   const [showTagsatzung, setShowTagsatzung] = useState(false);
   const [showTpDetails, setShowTpDetails] = useState(false);
-  const [showFormeln, setShowFormeln] = useState(false);
+  const [showFormeln1, setShowFormeln1] = useState(false);
+  const [showFormeln2, setShowFormeln2] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -159,118 +160,7 @@ export const RatgTab: React.FC = () => {
         )}
       </div>
 
-      {/* Berechnungsformeln für hohe Streitwerte */}
-      <div>
-        <button
-          onClick={() => setShowFormeln(!showFormeln)}
-          className="flex items-center justify-between w-full mb-4"
-        >
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Berechnung hoher Streitwerte (§ 1 Abs. 1)</p>
-          {showFormeln ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
-        </button>
-        {showFormeln && (
-          <div className="space-y-4">
-            {/* Stufe 1 */}
-            <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 p-4">
-              <h4 className="font-bold text-violet-300 mb-2">
-                Streitwert € 36.340 bis € 363.360
-              </h4>
-              <p className="text-sm text-violet-200/70 mb-3">
-                Basisbetrag bei € 36.340 + Zuschlag pro € 1.000 Mehrwert
-              </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-violet-500/20">
-                      <th className="text-left p-2 text-violet-400"></th>
-                      <th className="text-right p-2 text-violet-400">TP 1</th>
-                      <th className="text-right p-2 text-violet-400">TP 2</th>
-                      <th className="text-right p-2 text-violet-400">TP 3A</th>
-                      <th className="text-right p-2 text-violet-400">TP 3B</th>
-                      <th className="text-right p-2 text-violet-400">TP 3C</th>
-                    </tr>
-                  </thead>
-                  <tbody className="font-mono">
-                    <tr className="border-b border-violet-500/10">
-                      <td className="p-2 text-slate-400">Basis € 36.340</td>
-                      <td className="p-2 text-right text-slate-300">€ 92,20</td>
-                      <td className="p-2 text-right text-slate-300">€ 413,00</td>
-                      <td className="p-2 text-right text-slate-300">€ 814,40</td>
-                      <td className="p-2 text-right text-slate-300">€ 1.016,20</td>
-                      <td className="p-2 text-right text-slate-300">€ 1.219,60</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2 text-slate-400">+ pro € 1.000</td>
-                      <td className="p-2 text-right text-violet-400">× 0,10</td>
-                      <td className="p-2 text-right text-violet-400">× 0,50</td>
-                      <td className="p-2 text-right text-violet-400">× 1,00</td>
-                      <td className="p-2 text-right text-violet-400">× 1,25</td>
-                      <td className="p-2 text-right text-violet-400">× 1,50</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Stufe 2 */}
-            <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-4">
-              <h4 className="font-bold text-indigo-300 mb-2">
-                Streitwert über € 363.360
-              </h4>
-              <p className="text-sm text-indigo-200/70 mb-3">
-                Reduzierte Multiplikatoren, gedeckelt durch Maximalbeträge
-              </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-indigo-500/20">
-                      <th className="text-left p-2 text-indigo-400"></th>
-                      <th className="text-right p-2 text-indigo-400">TP 1</th>
-                      <th className="text-right p-2 text-indigo-400">TP 2</th>
-                      <th className="text-right p-2 text-indigo-400">TP 3A</th>
-                      <th className="text-right p-2 text-indigo-400">TP 3B</th>
-                      <th className="text-right p-2 text-indigo-400">TP 3C</th>
-                    </tr>
-                  </thead>
-                  <tbody className="font-mono">
-                    <tr className="border-b border-indigo-500/10">
-                      <td className="p-2 text-slate-400">Basis € 363.360</td>
-                      <td className="p-2 text-right text-slate-300">€ 124,90</td>
-                      <td className="p-2 text-right text-slate-300">€ 576,50</td>
-                      <td className="p-2 text-right text-slate-300">€ 1.141,40</td>
-                      <td className="p-2 text-right text-slate-300">€ 1.425,00</td>
-                      <td className="p-2 text-right text-slate-300">€ 1.710,10</td>
-                    </tr>
-                    <tr className="border-b border-indigo-500/10">
-                      <td className="p-2 text-slate-400">+ pro € 1.000</td>
-                      <td className="p-2 text-right text-indigo-400">× 0,05</td>
-                      <td className="p-2 text-right text-indigo-400">× 0,25</td>
-                      <td className="p-2 text-right text-indigo-400">× 0,50</td>
-                      <td className="p-2 text-right text-indigo-400">× 0,625</td>
-                      <td className="p-2 text-right text-indigo-400">× 0,75</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2 text-slate-400">Maximum</td>
-                      <td className="p-2 text-right text-amber-400">€ 260,10</td>
-                      <td className="p-2 text-right text-amber-400">€ 1.298,50</td>
-                      <td className="p-2 text-right text-amber-400">€ 17.308,80</td>
-                      <td className="p-2 text-right text-amber-400">€ 21.636,00</td>
-                      <td className="p-2 text-right text-amber-400">€ 25.963,10</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="text-xs text-slate-500 px-2">
-              <p>• Die Tarifsätze sind auf volle 10 Cent zu runden (§ 1 Abs. 1 zweiter Satz)</p>
-              <p>• Beratungszeit zählt zur Verhandlungs-, nicht zur Wartezeit</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Tariftabelle Schriftsätze */}
+      {/* Tariftabelle Schriftsätze - Streitwerte bis € 36.340 */}
       <div>
         <button
           onClick={() => setShowFullTarif(!showFullTarif)}
@@ -305,6 +195,117 @@ export const RatgTab: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Berechnungsformeln: Streitwerte € 36.340 bis € 363.360 */}
+      <div>
+        <button
+          onClick={() => setShowFormeln1(!showFormeln1)}
+          className="flex items-center justify-between w-full mb-4"
+        >
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Streitwerte € 36.340 – € 363.360</p>
+          {showFormeln1 ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+        </button>
+        {showFormeln1 && (
+          <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 p-4">
+            <p className="text-sm text-violet-200/70 mb-3">
+              Basisbetrag bei € 36.340 + Zuschlag pro € 1.000 Mehrwert
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-violet-500/20">
+                    <th className="text-left p-2 text-violet-400"></th>
+                    <th className="text-right p-2 text-violet-400">TP 1</th>
+                    <th className="text-right p-2 text-violet-400">TP 2</th>
+                    <th className="text-right p-2 text-violet-400">TP 3A</th>
+                    <th className="text-right p-2 text-violet-400">TP 3B</th>
+                    <th className="text-right p-2 text-violet-400">TP 3C</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr className="border-b border-violet-500/10">
+                    <td className="p-2 text-slate-400">Basis € 36.340</td>
+                    <td className="p-2 text-right text-slate-300">€ 92,20</td>
+                    <td className="p-2 text-right text-slate-300">€ 413,00</td>
+                    <td className="p-2 text-right text-slate-300">€ 814,40</td>
+                    <td className="p-2 text-right text-slate-300">€ 1.016,20</td>
+                    <td className="p-2 text-right text-slate-300">€ 1.219,60</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 text-slate-400">+ pro € 1.000</td>
+                    <td className="p-2 text-right text-violet-400">× 0,10</td>
+                    <td className="p-2 text-right text-violet-400">× 0,50</td>
+                    <td className="p-2 text-right text-violet-400">× 1,00</td>
+                    <td className="p-2 text-right text-violet-400">× 1,25</td>
+                    <td className="p-2 text-right text-violet-400">× 1,50</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Berechnungsformeln: Streitwerte über € 363.360 */}
+      <div>
+        <button
+          onClick={() => setShowFormeln2(!showFormeln2)}
+          className="flex items-center justify-between w-full mb-4"
+        >
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Streitwerte über € 363.360</p>
+          {showFormeln2 ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+        </button>
+        {showFormeln2 && (
+          <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-4">
+            <p className="text-sm text-indigo-200/70 mb-3">
+              Reduzierte Multiplikatoren, gedeckelt durch Maximalbeträge
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-indigo-500/20">
+                    <th className="text-left p-2 text-indigo-400"></th>
+                    <th className="text-right p-2 text-indigo-400">TP 1</th>
+                    <th className="text-right p-2 text-indigo-400">TP 2</th>
+                    <th className="text-right p-2 text-indigo-400">TP 3A</th>
+                    <th className="text-right p-2 text-indigo-400">TP 3B</th>
+                    <th className="text-right p-2 text-indigo-400">TP 3C</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr className="border-b border-indigo-500/10">
+                    <td className="p-2 text-slate-400">Basis € 363.360</td>
+                    <td className="p-2 text-right text-slate-300">€ 124,90</td>
+                    <td className="p-2 text-right text-slate-300">€ 576,50</td>
+                    <td className="p-2 text-right text-slate-300">€ 1.141,40</td>
+                    <td className="p-2 text-right text-slate-300">€ 1.425,00</td>
+                    <td className="p-2 text-right text-slate-300">€ 1.710,10</td>
+                  </tr>
+                  <tr className="border-b border-indigo-500/10">
+                    <td className="p-2 text-slate-400">+ pro € 1.000</td>
+                    <td className="p-2 text-right text-indigo-400">× 0,05</td>
+                    <td className="p-2 text-right text-indigo-400">× 0,25</td>
+                    <td className="p-2 text-right text-indigo-400">× 0,50</td>
+                    <td className="p-2 text-right text-indigo-400">× 0,625</td>
+                    <td className="p-2 text-right text-indigo-400">× 0,75</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 text-slate-400">Maximum</td>
+                    <td className="p-2 text-right text-amber-400">€ 260,10</td>
+                    <td className="p-2 text-right text-amber-400">€ 1.298,50</td>
+                    <td className="p-2 text-right text-amber-400">€ 17.308,80</td>
+                    <td className="p-2 text-right text-amber-400">€ 21.636,00</td>
+                    <td className="p-2 text-right text-amber-400">€ 25.963,10</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="text-xs text-slate-500 mt-3">
+              <p>• Die Tarifsätze sind auf volle 10 Cent zu runden (§ 1 Abs. 1 zweiter Satz)</p>
+            </div>
           </div>
         )}
       </div>
