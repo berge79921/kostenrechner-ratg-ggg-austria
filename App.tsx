@@ -831,12 +831,16 @@ const App: React.FC = () => {
                             {/* Streitwert */}
                             <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Streitwert</label>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-slate-400 font-medium">€</span>
+                              <span className="text-sm text-slate-500 font-bold">€</span>
                               <input
-                                type="number"
-                                value={s.customBmgl ?? bmgl}
-                                onChange={e => updateService(s.id, { customBmgl: Number(e.target.value) || bmgl })}
-                                className="w-28 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-right shadow-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                                type="text"
+                                inputMode="numeric"
+                                value={(s.customBmgl ?? bmgl).toLocaleString('de-AT')}
+                                onChange={e => {
+                                  const raw = e.target.value.replace(/\./g, '').replace(/,/g, '');
+                                  updateService(s.id, { customBmgl: Number(raw) || bmgl });
+                                }}
+                                className="w-28 bg-white border border-slate-200/80 rounded-xl px-3 py-2 text-sm font-bold text-right text-slate-700 shadow-[0_2px_4px_rgba(0,0,0,0.06),inset_0_1px_2px_rgba(255,255,255,0.8)] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 outline-none transition-all"
                               />
                             </div>
 
@@ -845,20 +849,20 @@ const App: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => updateService(s.id, { durationHours: Math.max(1, halbeStundenDauer - 1) })}
-                                className="w-9 h-9 rounded-xl bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-700 font-bold text-lg shadow-sm active:scale-95 transition-transform"
+                                className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-600 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
                               >−</button>
                               <input
                                 type="number"
                                 min="1"
                                 value={halbeStundenDauer}
                                 onChange={e => updateService(s.id, { durationHours: Math.max(1, Number(e.target.value)) })}
-                                className="w-14 bg-white border border-slate-200 rounded-xl px-2 py-2 text-sm font-bold text-center shadow-sm"
+                                className="w-14 bg-white border border-slate-200/80 rounded-xl px-2 py-2 text-sm font-bold text-center text-slate-700 shadow-[0_2px_4px_rgba(0,0,0,0.06),inset_0_1px_2px_rgba(255,255,255,0.8)]"
                               />
                               <button
                                 onClick={() => updateService(s.id, { durationHours: halbeStundenDauer + 1 })}
-                                className="w-9 h-9 rounded-xl bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-700 font-bold text-lg shadow-sm active:scale-95 transition-transform"
+                                className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-600 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
                               >+</button>
-                              <span className="text-xs text-slate-500 font-bold ml-1 w-12">½ Std.</span>
+                              <span className="text-sm text-slate-600 font-bold ml-1">½ Std.</span>
                             </div>
 
                             {/* Wartezeit (in halben Stunden) */}
@@ -866,20 +870,20 @@ const App: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => updateService(s.id, { waitingUnits: Math.max(0, halbeStundenWartezeit - 1) })}
-                                className="w-9 h-9 rounded-xl bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-700 font-bold text-lg shadow-sm active:scale-95 transition-transform"
+                                className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-600 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
                               >−</button>
                               <input
                                 type="number"
                                 min="0"
                                 value={halbeStundenWartezeit}
                                 onChange={e => updateService(s.id, { waitingUnits: Math.max(0, Number(e.target.value)) })}
-                                className="w-14 bg-white border border-slate-200 rounded-xl px-2 py-2 text-sm font-bold text-center shadow-sm"
+                                className="w-14 bg-white border border-slate-200/80 rounded-xl px-2 py-2 text-sm font-bold text-center text-slate-700 shadow-[0_2px_4px_rgba(0,0,0,0.06),inset_0_1px_2px_rgba(255,255,255,0.8)]"
                               />
                               <button
                                 onClick={() => updateService(s.id, { waitingUnits: halbeStundenWartezeit + 1 })}
-                                className="w-9 h-9 rounded-xl bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-700 font-bold text-lg shadow-sm active:scale-95 transition-transform"
+                                className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-600 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
                               >+</button>
-                              <span className="text-xs text-slate-500 font-bold ml-1 w-12">½ Std.</span>
+                              <span className="text-sm text-slate-600 font-bold ml-1">½ Std.</span>
                             </div>
 
                             {/* Streitgenossen */}
