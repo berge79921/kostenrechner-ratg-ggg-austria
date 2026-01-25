@@ -52,6 +52,8 @@ import {
 import { calculateStrafCosts } from './lib/straf-calculator';
 import { getStrafCatalog, getGroupedStrafCatalog, STRAF_CATEGORY_LABELS, getDefaultStrafService } from './lib/straf-catalog';
 import { ValuationModal } from './components/ValuationModal';
+import { ProWikiModal } from './components/ProWikiModal';
+import { BookOpen } from 'lucide-react';
 
 // Helper: Map ServiceType to TagsatzungType
 function getTagsatzungType(serviceType: ServiceType): TagsatzungType | null {
@@ -136,6 +138,7 @@ const App: React.FC = () => {
   const [strafSearchTerm, setStrafSearchTerm] = useState("");
   const [openStrafServiceDropdown, setOpenStrafServiceDropdown] = useState<string | null>(null);
   const [showValuationModal, setShowValuationModal] = useState(false);
+  const [showWiki, setShowWiki] = useState(false);
 
   // --- Calculations ---
   const results = useMemo(() => {
@@ -283,6 +286,12 @@ const App: React.FC = () => {
         />
       )}
 
+      {/* Pro-Wiki Modal */}
+      <ProWikiModal
+        isOpen={showWiki}
+        onClose={() => setShowWiki(false)}
+      />
+
       {/* Dynamic Background - GPU optimiert */}
       <div className="fixed inset-0 -z-20 bg-slate-950">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/15 blur-[120px] rounded-full animate-blob will-change-transform"></div>
@@ -327,6 +336,12 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => setShowWiki(true)}
+              className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10"
+            >
+              <BookOpen className="h-5 w-5" /> Wiki
+            </button>
             <button
               onClick={handleDownload}
               className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg shadow-blue-600/20"
