@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Briefcase, GraduationCap, Scale } from 'lucide-react';
+import { AlertTriangle, Briefcase, GraduationCap, Scale, FileText, Calculator, Users, Download, BookOpen, Building2, Gavel } from 'lucide-react';
 import { DISCLAIMER_TEXT, INTRO_TEXT } from '../../lib/wiki-data';
 
 export const WelcomeTab: React.FC = () => {
@@ -64,6 +64,52 @@ export const WelcomeTab: React.FC = () => {
           </li>
         </ol>
       </div>
+
+      {/* Features */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Kalkulator-Features</p>
+        <div className="grid md:grid-cols-2 gap-3">
+          <FeatureCard icon={<Calculator className="h-4 w-4" />} title="Automatische Berechnung" desc="Tarifsätze nach RATG und AHK" />
+          <FeatureCard icon={<Users className="h-4 w-4" />} title="Streitgenossen" desc="§ 15 RATG automatisch angewendet" />
+          <FeatureCard icon={<FileText className="h-4 w-4" />} title="Einheitssatz" desc="60% / 50% nach § 23 RATG" />
+          <FeatureCard icon={<Download className="h-4 w-4" />} title="PDF-Export" desc="Kostenverzeichnis als PDF" />
+        </div>
+      </div>
+
+      {/* Wiki-Navigation */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">In dieser Dokumentation</p>
+        <div className="grid md:grid-cols-3 gap-3">
+          <NavCard icon={<Scale className="h-5 w-5" />} title="RATG" desc="Rechtsanwaltstarif" color="blue" />
+          <NavCard icon={<Building2 className="h-5 w-5" />} title="GGG" desc="Gerichtsgebühren" color="emerald" />
+          <NavCard icon={<Gavel className="h-5 w-5" />} title="AHK" desc="Autonome Honorarkriterien" color="red" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FeatureCard: React.FC<{ icon: React.ReactNode; title: string; desc: string }> = ({ icon, title, desc }) => (
+  <div className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
+    <div className="flex-shrink-0 text-blue-400">{icon}</div>
+    <div>
+      <div className="font-medium text-white text-sm">{title}</div>
+      <div className="text-xs text-slate-500">{desc}</div>
+    </div>
+  </div>
+);
+
+const NavCard: React.FC<{ icon: React.ReactNode; title: string; desc: string; color: string }> = ({ icon, title, desc, color }) => {
+  const colors: Record<string, string> = {
+    blue: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+    emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
+    red: 'bg-red-500/10 border-red-500/20 text-red-400'
+  };
+  return (
+    <div className={`rounded-xl border p-4 ${colors[color]}`}>
+      <div className="mb-2">{icon}</div>
+      <div className="font-bold text-white text-sm">{title}</div>
+      <div className="text-xs text-slate-400">{desc}</div>
     </div>
   );
 };

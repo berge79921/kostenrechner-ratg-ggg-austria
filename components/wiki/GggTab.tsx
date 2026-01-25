@@ -1,8 +1,22 @@
-import React from 'react';
-import { ExternalLink, Building2 } from 'lucide-react';
-import { RIS_LINKS, GGG_TARIFPOSTEN, GGG_GEBUEHREN_TP1 } from '../../lib/wiki-data';
+import React, { useState } from 'react';
+import { ExternalLink, Building2, ChevronDown, ChevronUp } from 'lucide-react';
+import { RIS_LINKS, GGG_TARIFPOSTEN, GGG_ALLE_TARIFE } from '../../lib/wiki-data';
+
+type TarifKey = 'tp1' | 'tp2' | 'tp3';
+
+const TARIF_LABELS: Record<TarifKey, { name: string; desc: string; color: string }> = {
+  tp1: { name: 'TP 1', desc: '1. Instanz (Klagen, Anträge)', color: 'emerald' },
+  tp2: { name: 'TP 2', desc: '2. Instanz (Berufung, Rekurs)', color: 'blue' },
+  tp3: { name: 'TP 3', desc: '3. Instanz (Revision, OGH)', color: 'violet' },
+};
 
 export const GggTab: React.FC = () => {
+  const [expandedTarif, setExpandedTarif] = useState<TarifKey | null>(null);
+
+  const toggleTarif = (key: TarifKey) => {
+    setExpandedTarif(expandedTarif === key ? null : key);
+  };
+
   return (
     <div className="space-y-8">
       {/* Hero */}
@@ -63,30 +77,59 @@ export const GggTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Gebührentabelle */}
+      {/* Gebührentabellen alle TPs */}
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Gebührenstaffel TP 1 (Auszug)</p>
-        <div className="rounded-2xl border border-white/10 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-white/5 border-b border-white/10">
-              <tr>
-                <th className="text-left p-4 font-bold text-white">Streitwert bis</th>
-                <th className="text-right p-4 font-bold text-white">Gebühr</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {GGG_GEBUEHREN_TP1.map((row, i) => (
-                <tr key={i} className="hover:bg-white/5">
-                  <td className="p-4 font-mono text-slate-300">€ {row.bis.toLocaleString('de-AT')}</td>
-                  <td className="p-4 text-right font-mono text-emerald-400">€ {row.gebuehr.toLocaleString('de-AT', { minimumFractionDigits: 2 })}</td>
-                </tr>
-              ))}
-              <tr className="bg-emerald-500/10">
-                <td className="p-4 font-mono text-slate-300">über € 350.000</td>
-                <td className="p-4 text-right text-sm text-slate-400">€ 5.916 + 1,2% vom SW</td>
-              </tr>
-            </tbody>
-          </table>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Gebührentabellen nach Tarifpost</p>
+        <div className="space-y-3">
+          {(Object.keys(TARIF_LABELS) as TarifKey[]).map((key) => {
+            const label = TARIF_LABELS[key];
+            const data = GGG_ALLE_TARIFE[key];
+            const isExpanded = expandedTarif === key;
+            const colorClasses = {
+              emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
+              blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400' },
+              violet: { bg: 'bg-violet-500/10', border: 'border-violet-500/20', text: 'text-violet-400' },
+            }[label.color];
+
+            return (
+              <div key={key} className={`rounded-2xl border ${isExpanded ? colorClasses.border : 'border-white/10'} overflow-hidden`}>
+                <button
+                  onClick={() => toggleTarif(key)}
+                  className={`w-full p-4 flex items-center justify-between ${isExpanded ? colorClasses.bg : 'bg-white/5 hover:bg-white/10'} transition-colors`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`font-mono font-bold ${colorClasses.text}`}>{label.name}</span>
+                    <span className="text-slate-400 text-sm">{label.desc}</span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+                </button>
+                {isExpanded && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-white/5 border-t border-white/10">
+                        <tr>
+                          <th className="text-left p-3 font-bold text-white">Streitwert bis</th>
+                          <th className="text-right p-3 font-bold text-white">Gebühr</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {data.map((row, i) => (
+                          <tr key={i} className="hover:bg-white/5">
+                            <td className="p-3 font-mono text-slate-300">€ {row.bis.toLocaleString('de-AT')}</td>
+                            <td className={`p-3 text-right font-mono ${colorClasses.text}`}>€ {row.gebuehr.toLocaleString('de-AT', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        ))}
+                        <tr className={colorClasses.bg}>
+                          <td className="p-3 font-mono text-slate-300">über € 350.000</td>
+                          <td className="p-3 text-right text-sm text-slate-400">+ 1,2% vom Mehrbetrag</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, BookOpen, Scale, Gavel, Building2, Link2 } from 'lucide-react';
-import { WelcomeTab, RatgTab, GggTab, AhkTab, LinksTab } from './wiki';
+import { X, BookOpen, Scale, Gavel, Building2, Link2, Calculator } from 'lucide-react';
+import { WelcomeTab, RatgTab, GggTab, AhkTab, LinksTab, ExamplesTab } from './wiki';
 
-type TabId = 'welcome' | 'ratg' | 'ggg' | 'ahk' | 'links';
+type TabId = 'welcome' | 'ratg' | 'ggg' | 'ahk' | 'examples' | 'links';
 
 interface Tab {
   id: TabId;
@@ -15,6 +15,7 @@ const TABS: Tab[] = [
   { id: 'ratg', label: 'RATG', icon: <Scale className="h-4 w-4" /> },
   { id: 'ggg', label: 'GGG', icon: <Building2 className="h-4 w-4" /> },
   { id: 'ahk', label: 'AHK', icon: <Gavel className="h-4 w-4" /> },
+  { id: 'examples', label: 'Beispiele', icon: <Calculator className="h-4 w-4" /> },
   { id: 'links', label: 'Links', icon: <Link2 className="h-4 w-4" /> },
 ];
 
@@ -34,6 +35,7 @@ export const ProWikiModal: React.FC<ProWikiModalProps> = ({ isOpen, onClose }) =
       case 'ratg': return <RatgTab />;
       case 'ggg': return <GggTab />;
       case 'ahk': return <AhkTab />;
+      case 'examples': return <ExamplesTab />;
       case 'links': return <LinksTab />;
       default: return <WelcomeTab />;
     }

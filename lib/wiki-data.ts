@@ -195,6 +195,76 @@ export const AHK_SECTIONS: AhkSection[] = [
   }
 ];
 
+// RATG Tariftabelle (Auszug, Stand Mai 2023)
+export const RATG_TARIFE = [
+  { bis: 150, tp1: 11.70, tp2: 17.90, tp3a: 35.10, tp3b: 43.30, tp3c: 52.50 },
+  { bis: 300, tp1: 17.50, tp2: 26.60, tp3a: 52.50, tp3b: 65.00, tp3c: 78.60 },
+  { bis: 700, tp1: 23.20, tp2: 35.10, tp3a: 69.80, tp3b: 86.60, tp3c: 104.60 },
+  { bis: 1500, tp1: 25.50, tp2: 38.70, tp3a: 76.80, tp3b: 95.50, tp3c: 115.00 },
+  { bis: 3000, tp1: 29.00, tp2: 43.70, tp3a: 87.00, tp3b: 108.30, tp3c: 130.20 },
+  { bis: 7000, tp1: 34.80, tp2: 52.50, tp3a: 104.60, tp3b: 129.70, tp3c: 156.20 },
+  { bis: 10170, tp1: 46.30, tp2: 69.80, tp3a: 139.10, tp3b: 173.10, tp3c: 208.20 },
+  { bis: 36340, tp1: 115.50, tp2: 173.80, tp3a: 346.60, tp3b: 433.20, tp3c: 519.60 },
+];
+
+// Tagsatzungstarife (pro Stunde, Stand Mai 2023)
+export const RATG_TAGSATZUNG = [
+  { bis: 150, tp2: 26.90, tp3a: 52.70, tp3b: 65.00, tp3c: 78.80 },
+  { bis: 300, tp2: 39.90, tp3a: 78.80, tp3b: 97.50, tp3c: 117.90 },
+  { bis: 700, tp2: 52.70, tp3a: 104.70, tp3b: 129.90, tp3c: 156.90 },
+  { bis: 1500, tp2: 58.10, tp3a: 115.20, tp3b: 143.30, tp3c: 172.50 },
+  { bis: 3000, tp2: 65.60, tp3a: 130.50, tp3b: 162.50, tp3c: 195.30 },
+  { bis: 7000, tp2: 78.80, tp3a: 156.90, tp3b: 194.60, tp3c: 234.30 },
+  { bis: 10170, tp2: 104.70, tp3a: 208.60, tp3b: 259.70, tp3c: 312.30 },
+  { bis: 36340, tp2: 260.70, tp3a: 519.90, tp3b: 649.80, tp3c: 779.40 },
+];
+
+// GGG Tarife alle Tarifposten (Stand April 2025)
+export const GGG_ALLE_TARIFE = {
+  tp1: [ // Einleitungsschriften 1. Instanz
+    { bis: 150, gebuehr: 26 },
+    { bis: 300, gebuehr: 50 },
+    { bis: 700, gebuehr: 71 },
+    { bis: 2000, gebuehr: 119 },
+    { bis: 3500, gebuehr: 190 },
+    { bis: 7000, gebuehr: 350 },
+    { bis: 35000, gebuehr: 827 },
+    { bis: 70000, gebuehr: 1626 },
+    { bis: 140000, gebuehr: 3252 },
+    { bis: 210000, gebuehr: 4880 },
+    { bis: 280000, gebuehr: 5506 },
+    { bis: 350000, gebuehr: 8132 },
+  ],
+  tp2: [ // Rechtsmittel 2. Instanz
+    { bis: 150, gebuehr: 33 },
+    { bis: 300, gebuehr: 63 },
+    { bis: 700, gebuehr: 90 },
+    { bis: 2000, gebuehr: 150 },
+    { bis: 3500, gebuehr: 240 },
+    { bis: 7000, gebuehr: 441 },
+    { bis: 35000, gebuehr: 1042 },
+    { bis: 70000, gebuehr: 2049 },
+    { bis: 140000, gebuehr: 4098 },
+    { bis: 210000, gebuehr: 6149 },
+    { bis: 280000, gebuehr: 8198 },
+    { bis: 350000, gebuehr: 10247 },
+  ],
+  tp3: [ // Rechtsmittel 3. Instanz (OGH)
+    { bis: 150, gebuehr: 40 },
+    { bis: 300, gebuehr: 77 },
+    { bis: 700, gebuehr: 110 },
+    { bis: 2000, gebuehr: 183 },
+    { bis: 3500, gebuehr: 293 },
+    { bis: 7000, gebuehr: 539 },
+    { bis: 35000, gebuehr: 1273 },
+    { bis: 70000, gebuehr: 2504 },
+    { bis: 140000, gebuehr: 5008 },
+    { bis: 210000, gebuehr: 7514 },
+    { bis: 280000, gebuehr: 10018 },
+    { bis: 350000, gebuehr: 12522 },
+  ]
+};
+
 export const DISCLAIMER_TEXT = `Dieser Kalkulator ist experimentell. Es wird keine Haftung für die Richtigkeit der Berechnungen übernommen. Die Ergebnisse dienen ausschließlich zu Informationszwecken und ersetzen keine professionelle Rechtsberatung.`;
 
 export const INTRO_TEXT = `Dieser Kalkulator richtet sich an Praktiker und interessierte Rechtsanwender, um die Kostenlogik der österreichischen Tarife transparent zu machen.`;

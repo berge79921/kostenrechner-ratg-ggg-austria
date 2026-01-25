@@ -1,8 +1,11 @@
-import React from 'react';
-import { ExternalLink, FileText } from 'lucide-react';
-import { RIS_LINKS, RATG_TARIFPOSTEN, RATG_PARAGRAPHEN } from '../../lib/wiki-data';
+import React, { useState } from 'react';
+import { ExternalLink, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { RIS_LINKS, RATG_TARIFPOSTEN, RATG_PARAGRAPHEN, RATG_TARIFE, RATG_TAGSATZUNG } from '../../lib/wiki-data';
 
 export const RatgTab: React.FC = () => {
+  const [showFullTarif, setShowFullTarif] = useState(false);
+  const [showTagsatzung, setShowTagsatzung] = useState(false);
+
   return (
     <div className="space-y-8">
       {/* Hero */}
@@ -112,6 +115,89 @@ export const RatgTab: React.FC = () => {
             <div className="text-sm text-amber-200/60">über € 10.170 BMGL</div>
           </div>
         </div>
+      </div>
+
+      {/* Tariftabelle Schriftsätze */}
+      <div>
+        <button
+          onClick={() => setShowFullTarif(!showFullTarif)}
+          className="flex items-center justify-between w-full mb-4"
+        >
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tariftabelle Schriftsätze (Anlage 1)</p>
+          {showFullTarif ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+        </button>
+        {showFullTarif && (
+          <div className="rounded-2xl border border-white/10 overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead className="bg-white/5 border-b border-white/10">
+                <tr>
+                  <th className="text-left p-3 font-bold text-white">Streitwert bis</th>
+                  <th className="text-right p-3 font-bold text-slate-400">TP 1</th>
+                  <th className="text-right p-3 font-bold text-slate-400">TP 2</th>
+                  <th className="text-right p-3 font-bold text-blue-400">TP 3A</th>
+                  <th className="text-right p-3 font-bold text-blue-400">TP 3B</th>
+                  <th className="text-right p-3 font-bold text-blue-400">TP 3C</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {RATG_TARIFE.map((row, i) => (
+                  <tr key={i} className="hover:bg-white/5">
+                    <td className="p-3 font-mono text-slate-300">€ {row.bis.toLocaleString('de-AT')}</td>
+                    <td className="p-3 text-right font-mono text-slate-500">€ {row.tp1.toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono text-slate-400">€ {row.tp2.toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono text-blue-400">€ {row.tp3a.toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono text-blue-400">€ {row.tp3b.toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono text-blue-400">€ {row.tp3c.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Tariftabelle Tagsatzungen */}
+      <div>
+        <button
+          onClick={() => setShowTagsatzung(!showTagsatzung)}
+          className="flex items-center justify-between w-full mb-4"
+        >
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tariftabelle Tagsatzungen (Anlage 2)</p>
+          {showTagsatzung ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+        </button>
+        {showTagsatzung && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-white/10 overflow-hidden overflow-x-auto">
+              <table className="w-full text-sm min-w-[500px]">
+                <thead className="bg-white/5 border-b border-white/10">
+                  <tr>
+                    <th className="text-left p-3 font-bold text-white">Streitwert bis</th>
+                    <th className="text-right p-3 font-bold text-slate-400">TP 2</th>
+                    <th className="text-right p-3 font-bold text-violet-400">TP 3A</th>
+                    <th className="text-right p-3 font-bold text-violet-400">TP 3B</th>
+                    <th className="text-right p-3 font-bold text-violet-400">TP 3C</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {RATG_TAGSATZUNG.map((row, i) => (
+                    <tr key={i} className="hover:bg-white/5">
+                      <td className="p-3 font-mono text-slate-300">€ {row.bis.toLocaleString('de-AT')}</td>
+                      <td className="p-3 text-right font-mono text-slate-400">€ {row.tp2.toFixed(2)}</td>
+                      <td className="p-3 text-right font-mono text-violet-400">€ {row.tp3a.toFixed(2)}</td>
+                      <td className="p-3 text-right font-mono text-violet-400">€ {row.tp3b.toFixed(2)}</td>
+                      <td className="p-3 text-right font-mono text-violet-400">€ {row.tp3c.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="text-xs text-slate-500 px-2">
+              <p>• Angaben pro Stunde Verhandlungsdauer</p>
+              <p>• Ab der 2. Stunde nur halber Satz</p>
+              <p>• Einheitssatz zusätzlich auf Gesamtsumme</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Anlage 1 Link */}
