@@ -3,13 +3,14 @@ import { ExternalLink, FileText, ChevronDown, ChevronUp, Info } from 'lucide-rea
 import { RIS_LINKS, RATG_TARIFPOSTEN, RATG_PARAGRAPHEN, RATG_TARIFE, RATG_TAGSATZUNG, RATG_TP_DETAILS, RATG_FORMELN, RATG_RUNDUNG, RATG_TP4, RATG_TP567_TABELLE, RATG_TP567_MAXIMA, RATG_TP5_FORMEL, RATG_TP4567_HINWEISE } from '../../lib/wiki-data';
 
 export const RatgTab: React.FC = () => {
-  const [showFullTarif, setShowFullTarif] = useState(false);
-  const [showTagsatzung, setShowTagsatzung] = useState(false);
-  const [showTpDetails, setShowTpDetails] = useState(false);
-  const [showFormeln1, setShowFormeln1] = useState(false);
-  const [showFormeln2, setShowFormeln2] = useState(false);
-  const [showTp4, setShowTp4] = useState(false);
-  const [showTp567, setShowTp567] = useState(false);
+  // Alle Sektionen standardmäßig aufgeklappt
+  const [showFullTarif, setShowFullTarif] = useState(true);
+  const [showTagsatzung, setShowTagsatzung] = useState(true);
+  const [showTpDetails, setShowTpDetails] = useState(true);
+  const [showFormeln1, setShowFormeln1] = useState(true);
+  const [showFormeln2, setShowFormeln2] = useState(true);
+  const [showTp4, setShowTp4] = useState(true);
+  const [showTp567, setShowTp567] = useState(true);
 
   return (
     <div className="space-y-8">
