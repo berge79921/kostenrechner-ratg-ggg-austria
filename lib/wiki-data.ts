@@ -268,45 +268,60 @@ export const RATG_TP4 = {
   // Privatbeteiligte: jeweils die Hälfte
 };
 
-// TP 5 Einfache Schreiben (Stand 1.5.2023, BGBl. II Nr. 131/2023)
-export const RATG_TP5_BRIEFE = [
-  { bis: 70, tp5: 4.20 },
-  { bis: 180, tp5: 5.60 },
-  { bis: 360, tp5: 6.30 },
-  { bis: 730, tp5: 7.50 },
-  { bis: 1820, tp5: 9.20 },
-  { bis: 2910, tp5: 10.80 },
-  // Über € 2.910: +€ 3,30 pro angefangene € 1.450
-  { bis: 4360, tp5: 14.10 },   // 10,80 + 3,30
-  { bis: 5810, tp5: 17.40 },   // 14,10 + 3,30
-  { bis: 7260, tp5: 20.70 },
-  { bis: 8710, tp5: 24.00 },
-  { bis: 10160, tp5: 27.30 },
-  { bis: 11610, tp5: 30.60 },
-  { bis: 13060, tp5: 33.90 },
-  { bis: 14510, tp5: 37.20 },
-  { bis: 15960, tp5: 40.50 },
-  { bis: 17410, tp5: 43.80 },
-  { bis: 18860, tp5: 47.10 },
-  { bis: 20310, tp5: 50.40 },
-  { bis: 21760, tp5: 53.70 },
-  { bis: 23210, tp5: 57.00 },
-  { bis: 24660, tp5: 60.30 },
-  { bis: 26110, tp5: 63.60 },
-  { bis: 27560, tp5: 66.90 },
-  { bis: 29010, tp5: 70.20 },
-  { bis: 30460, tp5: 73.50 },
-  { bis: 31910, tp5: 76.80 },
-  { bis: 33360, tp5: 80.10 },
-  { bis: 34810, tp5: 83.40 },
-  { bis: 36260, tp5: 86.70 },
-  { bis: 37710, tp5: 90.00 },
-  { bis: 39160, tp5: 93.30 },
-  { bis: 40610, tp5: 96.60 },
-  { bis: 42060, tp5: 99.90 },
-  { bis: 43510, tp5: 103.20 },
-  // Maximum: € 104,60
+// TP 5, 6, 7 Komplette Tariftabelle (Stand 1.5.2023, BGBl. II Nr. 131/2023)
+// TP 5 = Einfache Schreiben
+// TP 6 = Andere Briefe = 2× TP 5, max € 208,20
+// TP 7 Gehilfe = wie TP 6, max € 208,20 pro ½h
+// TP 7 RA/RAA = 2× TP 6, max € 416,10 pro ½h
+export const RATG_TP567_TABELLE = [
+  { bis: 70, tp5: 4.20, tp6: 8.40, tp7Gehilfe: 8.40, tp7RaRaa: 16.80 },
+  { bis: 180, tp5: 5.60, tp6: 11.20, tp7Gehilfe: 11.20, tp7RaRaa: 22.40 },
+  { bis: 360, tp5: 6.30, tp6: 12.60, tp7Gehilfe: 12.60, tp7RaRaa: 25.20 },
+  { bis: 730, tp5: 7.50, tp6: 15.00, tp7Gehilfe: 15.00, tp7RaRaa: 30.00 },
+  { bis: 1820, tp5: 9.20, tp6: 18.40, tp7Gehilfe: 18.40, tp7RaRaa: 36.80 },
+  { bis: 2910, tp5: 10.80, tp6: 21.60, tp7Gehilfe: 21.60, tp7RaRaa: 43.20 },
+  // Ab hier: +€ 3,30 (TP5) / +€ 6,60 (TP6) pro angefangene € 1.450
+  { bis: 4360, tp5: 14.10, tp6: 28.20, tp7Gehilfe: 28.20, tp7RaRaa: 56.40 },
+  { bis: 5810, tp5: 17.40, tp6: 34.80, tp7Gehilfe: 34.80, tp7RaRaa: 69.60 },
+  { bis: 7260, tp5: 20.70, tp6: 41.40, tp7Gehilfe: 41.40, tp7RaRaa: 82.80 },
+  { bis: 8710, tp5: 24.00, tp6: 48.00, tp7Gehilfe: 48.00, tp7RaRaa: 96.00 },
+  { bis: 10160, tp5: 27.30, tp6: 54.60, tp7Gehilfe: 54.60, tp7RaRaa: 109.20 },
+  { bis: 11610, tp5: 30.60, tp6: 61.20, tp7Gehilfe: 61.20, tp7RaRaa: 122.40 },
+  { bis: 13060, tp5: 33.90, tp6: 67.80, tp7Gehilfe: 67.80, tp7RaRaa: 135.60 },
+  { bis: 14510, tp5: 37.20, tp6: 74.40, tp7Gehilfe: 74.40, tp7RaRaa: 148.80 },
+  { bis: 15960, tp5: 40.50, tp6: 81.00, tp7Gehilfe: 81.00, tp7RaRaa: 162.00 },
+  { bis: 17410, tp5: 43.80, tp6: 87.60, tp7Gehilfe: 87.60, tp7RaRaa: 175.20 },
+  { bis: 18860, tp5: 47.10, tp6: 94.20, tp7Gehilfe: 94.20, tp7RaRaa: 188.40 },
+  { bis: 20310, tp5: 50.40, tp6: 100.80, tp7Gehilfe: 100.80, tp7RaRaa: 201.60 },
+  { bis: 21760, tp5: 53.70, tp6: 107.40, tp7Gehilfe: 107.40, tp7RaRaa: 214.80 },
+  { bis: 23210, tp5: 57.00, tp6: 114.00, tp7Gehilfe: 114.00, tp7RaRaa: 228.00 },
+  { bis: 24660, tp5: 60.30, tp6: 120.60, tp7Gehilfe: 120.60, tp7RaRaa: 241.20 },
+  { bis: 26110, tp5: 63.60, tp6: 127.20, tp7Gehilfe: 127.20, tp7RaRaa: 254.40 },
+  { bis: 27560, tp5: 66.90, tp6: 133.80, tp7Gehilfe: 133.80, tp7RaRaa: 267.60 },
+  { bis: 29010, tp5: 70.20, tp6: 140.40, tp7Gehilfe: 140.40, tp7RaRaa: 280.80 },
+  { bis: 30460, tp5: 73.50, tp6: 147.00, tp7Gehilfe: 147.00, tp7RaRaa: 294.00 },
+  { bis: 31910, tp5: 76.80, tp6: 153.60, tp7Gehilfe: 153.60, tp7RaRaa: 307.20 },
+  { bis: 33360, tp5: 80.10, tp6: 160.20, tp7Gehilfe: 160.20, tp7RaRaa: 320.40 },
+  { bis: 34810, tp5: 83.40, tp6: 166.80, tp7Gehilfe: 166.80, tp7RaRaa: 333.60 },
+  { bis: 36260, tp5: 86.70, tp6: 173.40, tp7Gehilfe: 173.40, tp7RaRaa: 346.80 },
+  { bis: 37710, tp5: 90.00, tp6: 180.00, tp7Gehilfe: 180.00, tp7RaRaa: 360.00 },
+  { bis: 39160, tp5: 93.30, tp6: 186.60, tp7Gehilfe: 186.60, tp7RaRaa: 373.20 },
+  { bis: 40610, tp5: 96.60, tp6: 193.20, tp7Gehilfe: 193.20, tp7RaRaa: 386.40 },
+  { bis: 42060, tp5: 99.90, tp6: 199.80, tp7Gehilfe: 199.80, tp7RaRaa: 399.60 },
+  { bis: 43510, tp5: 103.20, tp6: 206.40, tp7Gehilfe: 206.40, tp7RaRaa: 412.80 },
+  // darüber: Maximum
+  { bis: Infinity, tp5: 104.60, tp6: 208.20, tp7Gehilfe: 208.20, tp7RaRaa: 416.10 },
 ];
+
+// Maximalbeträge
+export const RATG_TP567_MAXIMA = {
+  tp5: 104.60,
+  tp6: 208.20,
+  tp7Gehilfe: 208.20,
+  tp7RaRaa: 416.10,
+};
+
+// Formel für Berechnung
 export const RATG_TP5_FORMEL = {
   basisBis: 2910,
   basisWert: 10.80,

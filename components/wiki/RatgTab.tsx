@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ExternalLink, FileText, ChevronDown, ChevronUp, Info } from 'lucide-react';
-import { RIS_LINKS, RATG_TARIFPOSTEN, RATG_PARAGRAPHEN, RATG_TARIFE, RATG_TAGSATZUNG, RATG_TP_DETAILS, RATG_FORMELN, RATG_RUNDUNG, RATG_TP4, RATG_TP5_BRIEFE, RATG_TP5_FORMEL, RATG_TP6_MAXIMUM, RATG_TP7, RATG_TP4567_HINWEISE } from '../../lib/wiki-data';
+import { RIS_LINKS, RATG_TARIFPOSTEN, RATG_PARAGRAPHEN, RATG_TARIFE, RATG_TAGSATZUNG, RATG_TP_DETAILS, RATG_FORMELN, RATG_RUNDUNG, RATG_TP4, RATG_TP567_TABELLE, RATG_TP567_MAXIMA, RATG_TP5_FORMEL, RATG_TP4567_HINWEISE } from '../../lib/wiki-data';
 
 export const RatgTab: React.FC = () => {
   const [showFullTarif, setShowFullTarif] = useState(false);
@@ -446,57 +446,75 @@ export const RatgTab: React.FC = () => {
         </button>
         {showTp567 && (
           <div className="space-y-6">
-            {/* TP 5 Tabelle */}
-            <div className="rounded-2xl border border-white/10 overflow-hidden">
+            {/* Komplette Tabelle */}
+            <div className="rounded-2xl border border-white/10 overflow-hidden overflow-x-auto">
               <div className="bg-white/5 p-3 border-b border-white/10">
-                <span className="font-bold text-white">TP 5 – Einfache Schreiben</span>
-                <span className="text-xs text-slate-500 ml-2">(Mahnschreiben, kurze Mitteilungen etc.)</span>
+                <span className="font-bold text-white">Komplette Tariftabelle TP 5, 6, 7</span>
+                <span className="text-xs text-slate-500 ml-2">(Stand 1.5.2023)</span>
               </div>
-              <div className="p-4">
-                <table className="w-full text-xs mb-3">
-                  <tbody className="divide-y divide-white/5">
-                    {RATG_TP5_BRIEFE.slice(0, 6).map((row, i) => (
-                      <tr key={i}>
-                        <td className="py-1.5 text-slate-400">bis € {row.bis.toLocaleString('de-AT')}</td>
-                        <td className="py-1.5 text-right font-mono text-emerald-400">€ {row.tp5.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="text-xs text-slate-500 bg-white/5 rounded-lg p-3">
-                  <p className="mb-1">Über € {RATG_TP5_FORMEL.basisBis.toLocaleString('de-AT')}:</p>
-                  <p className="font-mono">€ {RATG_TP5_FORMEL.basisWert.toFixed(2)} + € {RATG_TP5_FORMEL.zuschlagWert.toFixed(2)} pro angefangene € {RATG_TP5_FORMEL.zuschlagPro.toLocaleString('de-AT')}</p>
-                  <p className="mt-2 text-amber-400">Maximum: € {RATG_TP5_FORMEL.maximum.toFixed(2)}</p>
-                </div>
+              <table className="w-full text-xs min-w-[600px]">
+                <thead className="bg-white/5 border-b border-white/10">
+                  <tr>
+                    <th className="text-left p-2 font-bold text-white">Streitwert bis</th>
+                    <th className="text-right p-2 font-bold text-emerald-400">TP 5<br/><span className="font-normal text-slate-500">kurze</span></th>
+                    <th className="text-right p-2 font-bold text-teal-400">TP 6<br/><span className="font-normal text-slate-500">andere</span></th>
+                    <th className="text-right p-2 font-bold text-orange-400">TP 7<br/><span className="font-normal text-slate-500">Gehilfe</span></th>
+                    <th className="text-right p-2 font-bold text-red-400">TP 7<br/><span className="font-normal text-slate-500">RA/RAA</span></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {RATG_TP567_TABELLE.slice(0, -1).map((row, i) => (
+                    <tr key={i} className="hover:bg-white/5">
+                      <td className="p-2 font-mono text-slate-300">€ {row.bis.toLocaleString('de-AT')}</td>
+                      <td className="p-2 text-right font-mono text-emerald-400">€ {row.tp5.toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono text-teal-400">€ {row.tp6.toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono text-orange-400">€ {row.tp7Gehilfe.toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono text-red-400">€ {row.tp7RaRaa.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {/* Maximum row */}
+                  <tr className="bg-amber-500/10 font-bold">
+                    <td className="p-2 text-amber-300">darüber (Maximum)</td>
+                    <td className="p-2 text-right font-mono text-amber-400">€ {RATG_TP567_MAXIMA.tp5.toFixed(2)}</td>
+                    <td className="p-2 text-right font-mono text-amber-400">€ {RATG_TP567_MAXIMA.tp6.toFixed(2)}</td>
+                    <td className="p-2 text-right font-mono text-amber-400">€ {RATG_TP567_MAXIMA.tp7Gehilfe.toFixed(2)}</td>
+                    <td className="p-2 text-right font-mono text-amber-400">€ {RATG_TP567_MAXIMA.tp7RaRaa.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Formel */}
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+              <h4 className="font-bold text-white text-sm mb-2">Berechnungsformel (über € {RATG_TP5_FORMEL.basisBis.toLocaleString('de-AT')})</h4>
+              <div className="text-xs text-slate-400 space-y-1">
+                <p><strong className="text-emerald-400">TP 5:</strong> € {RATG_TP5_FORMEL.basisWert.toFixed(2)} + € {RATG_TP5_FORMEL.zuschlagWert.toFixed(2)} pro angefangene € {RATG_TP5_FORMEL.zuschlagPro.toLocaleString('de-AT')}</p>
+                <p><strong className="text-teal-400">TP 6:</strong> 2× TP 5</p>
+                <p><strong className="text-orange-400">TP 7 Gehilfe:</strong> = TP 6 (pro ½ Stunde)</p>
+                <p><strong className="text-red-400">TP 7 RA/RAA:</strong> 2× TP 6 (pro ½ Stunde)</p>
               </div>
             </div>
 
-            {/* TP 6 */}
-            <div className="rounded-xl bg-teal-500/10 border border-teal-500/20 p-4">
-              <h4 className="font-bold text-teal-300 text-sm mb-2">TP 6 – Andere Briefe</h4>
-              <p className="text-sm text-teal-200/80 mb-2">Das Doppelte der TP 5-Entlohnung</p>
-              <p className="font-mono text-teal-400">Maximum: € {RATG_TP6_MAXIMUM.toFixed(2)}</p>
-              <p className="text-xs text-slate-500 mt-2">Ausnahme: Briefe mit Rechtsgutachten oder Verträgen unterliegen nicht dem Tarif</p>
+            {/* Legende */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
+                <h5 className="font-bold text-emerald-300 text-xs mb-1">TP 5 – Einfache Schreiben</h5>
+                <p className="text-xs text-emerald-200/70">Mahnschreiben, kurze Berichte, Mitteilungen, Einladungen, Empfangsbestätigungen</p>
+              </div>
+              <div className="rounded-xl bg-teal-500/10 border border-teal-500/20 p-3">
+                <h5 className="font-bold text-teal-300 text-xs mb-1">TP 6 – Andere Briefe</h5>
+                <p className="text-xs text-teal-200/70">Ausgenommen: Rechtsgutachten und Vertragsurkunden (nicht im Tarif)</p>
+              </div>
             </div>
 
-            {/* TP 7 */}
+            {/* TP 7 Details */}
             <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-4">
-              <h4 className="font-bold text-orange-300 text-sm mb-3">TP 7 – Kommissionen (pro ½ Stunde)</h4>
-              <div className="grid md:grid-cols-2 gap-4 mb-4">
-                <div className="bg-black/20 rounded-lg p-3">
-                  <div className="text-xs text-slate-500 mb-1">RA-Gehilfe (= TP 6)</div>
-                  <div className="font-mono font-bold text-orange-400">max € {RATG_TP7.gehilfeMaximum.toFixed(2)}</div>
-                </div>
-                <div className="bg-black/20 rounded-lg p-3">
-                  <div className="text-xs text-slate-500 mb-1">RA / RAA (= 2× TP 6)</div>
-                  <div className="font-mono font-bold text-red-400">max € {RATG_TP7.raRaaMaximum.toFixed(2)}</div>
-                </div>
-              </div>
-              <div className="text-xs text-orange-200/70 space-y-1">
-                <p>• <strong>Abs. 1:</strong> {RATG_TP4567_HINWEISE.tp7Abs1}</p>
-                <p>• <strong>Abs. 2:</strong> {RATG_TP4567_HINWEISE.tp7Abs2}</p>
-                <p>• <strong>Abs. 3:</strong> {RATG_TP4567_HINWEISE.tp7Abs3}</p>
-                <p className="text-amber-400 mt-2">+ {RATG_TP4567_HINWEISE.tp7Nebenkosten}</p>
+              <h4 className="font-bold text-orange-300 text-sm mb-3">TP 7 – Kommissionen (Details)</h4>
+              <div className="text-xs text-orange-200/70 space-y-2">
+                <p><strong>Abs. 1:</strong> {RATG_TP4567_HINWEISE.tp7Abs1}</p>
+                <p><strong>Abs. 2:</strong> {RATG_TP4567_HINWEISE.tp7Abs2}</p>
+                <p><strong>Abs. 3:</strong> {RATG_TP4567_HINWEISE.tp7Abs3}</p>
+                <p className="text-amber-400 mt-2 pt-2 border-t border-orange-500/20">+ {RATG_TP4567_HINWEISE.tp7Nebenkosten}</p>
               </div>
             </div>
 
