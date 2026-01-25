@@ -918,9 +918,9 @@ const App: React.FC = () => {
                                   {s.isRaRaaErforderlich ? 'TP 7/2' : 'TP 7/1'}
                                 </span>
                               </button>
-                              <div className="text-[10px] text-slate-500 px-1">
+                              <div className="text-[11px] text-slate-600 px-1">
                                 {s.isRaRaaErforderlich
-                                  ? 'TP 7/2: Exekutionsvollzug, Aktenstudium bei Behörden, außergerichtl. Augenscheine'
+                                  ? 'TP 7/2: Exekutionsvollzug, Aktenstudium bei Behörden, außergerichtl. Augenscheine, Besuch in Haftanstalt'
                                   : 'TP 7/1: Geschäfte durch Gehilfen (niedrigerer Satz)'}
                               </div>
                             </div>
