@@ -87,7 +87,7 @@ export const RATG_PARAGRAPHEN: RatgParagraphInfo[] = [
     paragraph: '§ 23a',
     title: 'ERV-Beitrag',
     description: 'Pauschale für elektronischen Rechtsverkehr',
-    values: ['€ 2,10 pro ERV-Eingabe']
+    values: ['€ 2,10 Ersteingabe', '€ 1,80 Folgeeingabe']
   }
 ];
 
