@@ -906,15 +906,15 @@ const App: React.FC = () => {
                             <div className="space-y-2">
                               <button
                                 onClick={() => updateService(s.id, { isRaRaaErforderlich: !s.isRaRaaErforderlich })}
-                                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${s.isRaRaaErforderlich ? 'bg-orange-500/10 border-orange-500/30 text-orange-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${s.isRaRaaErforderlich ? 'bg-blue-50 border-blue-300' : 'bg-slate-100 border-slate-200'}`}
                               >
                                 <div className="flex items-center gap-2 text-left">
-                                  <div className={`w-5 h-5 rounded-md flex items-center justify-center ${s.isRaRaaErforderlich ? 'bg-orange-500 text-white' : 'bg-slate-200'}`}>
+                                  <div className={`w-5 h-5 rounded-md flex items-center justify-center ${s.isRaRaaErforderlich ? 'bg-blue-600 text-white' : 'bg-slate-300'}`}>
                                     {s.isRaRaaErforderlich && <span className="text-xs font-bold">✓</span>}
                                   </div>
-                                  <span className="text-xs font-bold uppercase tracking-wide">RA/RAA erforderlich</span>
+                                  <span className={`text-xs font-bold uppercase tracking-wide ${s.isRaRaaErforderlich ? 'text-slate-700' : 'text-slate-500'}`}>RA/RAA erforderlich</span>
                                 </div>
-                                <span className={`text-[10px] font-bold px-2 py-1 rounded ${s.isRaRaaErforderlich ? 'bg-orange-500/20 text-orange-600' : 'bg-slate-200 text-slate-500'}`}>
+                                <span className={`text-[10px] font-black px-2 py-1 rounded ${s.isRaRaaErforderlich ? 'bg-blue-600 text-white' : 'bg-slate-300 text-slate-600'}`}>
                                   {s.isRaRaaErforderlich ? 'TP 7/2' : 'TP 7/1'}
                                 </span>
                               </button>
@@ -930,7 +930,7 @@ const App: React.FC = () => {
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
-                              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${isTP8 ? 'text-red-600 bg-red-50 border-red-200' : isTP7 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-blue-600 bg-blue-50 border-blue-100'}`}>
+                              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${isTP8 ? 'text-red-700 bg-red-100 border-red-300' : isTP7 ? 'text-blue-700 bg-blue-100 border-blue-300' : 'text-blue-600 bg-blue-50 border-blue-100'}`}>
                                 {isTP8 ? 'KEINER' : effectiveEsMultiplier === 0 ? 'keiner' : effectiveEsMultiplier === 1 ? 'einfach' : 'doppelt'}
                               </span>
                             </div>
@@ -956,7 +956,7 @@ const App: React.FC = () => {
                             </div>
                             )}
                             {isTP7 && (
-                              <div className="text-[10px] text-amber-600 px-1">
+                              <div className="text-[10px] text-slate-500 px-1">
                                 TP 7: Max. einfacher Einheitssatz (§ 23 Abs. 1 RATG)
                               </div>
                             )}
