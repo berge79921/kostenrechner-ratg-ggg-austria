@@ -195,18 +195,24 @@ const App: React.FC = () => {
   // --- Handlers ---
   const addService = (entry: any) => {
     const isHearing = entry.type.includes('HEARING');
+    const isTP5or6or8or9 = ['TP5', 'TP6', 'TP8', 'TP9'].includes(entry.tp);
+    const isTP7 = entry.tp === 'TP7';
+    // ES-Defaults: TP5,6,8,9 = 0 (kein ES), TP7 = max 1 (einfach), andere = 2 (doppelt)
+    const defaultEsMultiplier = isTP5or6or8or9 ? 0 : (isTP7 ? 1 : ((entry.type === ServiceType.PLEADING_TP3A_I || entry.type === ServiceType.PLEADING_TP3B || isHearing) ? 2 : 1));
     const newService: LegalService = {
       id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       label: entry.short,
       type: entry.type,
+      tp: entry.tp, // Tarifpost aus Katalog
       // Bei HEARINGs: durationHours = Anzahl halbe Stunden (2 = 1 Stunde), sonst 1
       durationHours: isHearing ? 2 : 1,
-      esMultiplier: (entry.type === ServiceType.PLEADING_TP3A_I || entry.type === ServiceType.PLEADING_TP3B || isHearing) ? 2 : 1,
+      esMultiplier: defaultEsMultiplier,
       includeErv: entry.type.startsWith('PLEADING'),
       isInitiating: services.length === 0,
       waitingUnits: 0,
-      isAuswaerts: false
+      isAuswaerts: false,
+      isRaRaaErforderlich: isTP7 ? true : undefined, // TP7: Default = RA/RAA erforderlich (TP 7/2)
     };
     setServices([...services, newService]);
     setShowCatalog(false);
@@ -759,17 +765,51 @@ const App: React.FC = () => {
                       const halbeStundenDauer = s.durationHours || 2;
                       const halbeStundenWartezeit = s.waitingUnits || 0;
 
+                      // TP7 Kommissionen: Sonderbehandlung
+                      const isTP7 = s.tp === 'TP7';
+                      const isTP8 = s.tp === 'TP8';
+                      // TP7 hat max. einfachen ES, TP8 keinen ES
+                      const tp7MaxES = isTP7 ? 1 : (isTP8 ? 0 : 2);
+
                       // Berechnung
                       const tsResult = tsType ? getTagsatzung(serviceBmgl, tsType, halbeStundenDauer, halbeStundenWartezeit) : null;
                       const tariffInfo = tsType ? getTariffBase(serviceBmgl, tsType) : null;
 
                       // 1. Entlohnung + Wartezeit = Basis für ES
-                      const entlohnung = tsResult?.entlohnung || 0;
+                      let entlohnung = tsResult?.entlohnung || 0;
+
+                      // TP7: Eigene Berechnung basierend auf TP 7/1 (Gehilfe) oder TP 7/2 (RA/RAA)
+                      // TP 7/1 = TP6-Rate, TP 7/2 = 2× TP6-Rate
+                      if (isTP7) {
+                        // TP7 Tarife aus wiki-data.ts nutzen (vereinfacht: lookup)
+                        const tp7Tabelle = [
+                          { bis: 70, gehilfe: 840, raRaa: 1680 },
+                          { bis: 180, gehilfe: 1120, raRaa: 2240 },
+                          { bis: 360, gehilfe: 1260, raRaa: 2520 },
+                          { bis: 730, gehilfe: 1500, raRaa: 3000 },
+                          { bis: 1820, gehilfe: 1840, raRaa: 3680 },
+                          { bis: 2910, gehilfe: 2160, raRaa: 4320 },
+                          { bis: 4360, gehilfe: 2820, raRaa: 5640 },
+                          { bis: 5810, gehilfe: 3480, raRaa: 6960 },
+                          { bis: 7260, gehilfe: 4140, raRaa: 8280 },
+                          { bis: 8710, gehilfe: 4800, raRaa: 9600 },
+                          { bis: 10160, gehilfe: 5460, raRaa: 10920 },
+                          { bis: 36260, gehilfe: 17340, raRaa: 34680 },
+                          { bis: 43510, gehilfe: 20640, raRaa: 41280 },
+                          { bis: Infinity, gehilfe: 20820, raRaa: 41610 }, // Maximum
+                        ];
+                        const row = tp7Tabelle.find(r => serviceBmgl <= r.bis * 100) || tp7Tabelle[tp7Tabelle.length - 1];
+                        const ratePerHalf = s.isRaRaaErforderlich ? row.raRaa : row.gehilfe;
+                        entlohnung = ratePerHalf * halbeStundenDauer;
+                      }
+
                       const wartezeit = tsResult?.wartezeit || 0;
                       const basisFuerES = entlohnung + wartezeit;
 
                       // 2. ES-Zuschlag auf (Entlohnung + Wartezeit)
-                      const esRate = s.esMultiplier === 0 ? 0 : s.esMultiplier === 1 ? (serviceBmgl <= 1017000 ? 0.6 : 0.5) : (serviceBmgl <= 1017000 ? 1.2 : 1.0);
+                      // TP7: max. einfacher ES, TP8: kein ES
+                      const effectiveEsMultiplier = Math.min(s.esMultiplier, tp7MaxES);
+                      const esRate = effectiveEsMultiplier === 0 ? 0 : effectiveEsMultiplier === 1 ? (serviceBmgl <= 1017000 ? 0.6 : 0.5) : (serviceBmgl <= 1017000 ? 1.2 : 1.0);
                       const esZuschlag = Math.round(basisFuerES * esRate);
 
                       // 3. Zwischensumme = Basis + ES
@@ -861,19 +901,49 @@ const App: React.FC = () => {
                             </select>
                           </div>
 
+                          {/* TP7 Toggle: RA/RAA erforderlich (TP 7/1 vs TP 7/2) */}
+                          {isTP7 && (
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => updateService(s.id, { isRaRaaErforderlich: !s.isRaRaaErforderlich })}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${s.isRaRaaErforderlich ? 'bg-orange-500/10 border-orange-500/30 text-orange-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                              >
+                                <div className="flex items-center gap-2 text-left">
+                                  <div className={`w-5 h-5 rounded-md flex items-center justify-center ${s.isRaRaaErforderlich ? 'bg-orange-500 text-white' : 'bg-slate-200'}`}>
+                                    {s.isRaRaaErforderlich && <span className="text-xs font-bold">✓</span>}
+                                  </div>
+                                  <span className="text-xs font-bold uppercase tracking-wide">RA/RAA erforderlich</span>
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded ${s.isRaRaaErforderlich ? 'bg-orange-500/20 text-orange-600' : 'bg-slate-200 text-slate-500'}`}>
+                                  {s.isRaRaaErforderlich ? 'TP 7/2' : 'TP 7/1'}
+                                </span>
+                              </button>
+                              <div className="text-[10px] text-slate-500 px-1">
+                                {s.isRaRaaErforderlich
+                                  ? 'TP 7/2: Exekutionsvollzug, Aktenstudium bei Behörden, außergerichtl. Augenscheine'
+                                  : 'TP 7/1: Geschäfte durch Gehilfen (niedrigerer Satz)'}
+                              </div>
+                            </div>
+                          )}
+
                           {/* ES Multiplier für Tagsatzungen */}
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
-                              <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-                                {s.esMultiplier === 0 ? 'keiner' : s.esMultiplier === 1 ? 'einfach' : 'doppelt'}
+                              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${isTP8 ? 'text-red-600 bg-red-50 border-red-200' : isTP7 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-blue-600 bg-blue-50 border-blue-100'}`}>
+                                {isTP8 ? 'KEINER' : effectiveEsMultiplier === 0 ? 'keiner' : effectiveEsMultiplier === 1 ? 'einfach' : 'doppelt'}
                               </span>
                             </div>
+                            {isTP8 ? (
+                              <div className="flex p-3 bg-red-50/50 rounded-xl border border-red-200/50 text-xs text-red-600">
+                                Kein Einheitssatz bei TP 8 (§ 23 Abs. 1 RATG)
+                              </div>
+                            ) : (
                             <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
                               {[
                                 { val: 0, label: 'keiner' },
                                 { val: 1, label: 'einfach' },
-                                { val: 2, label: 'doppelt' }
+                                ...(isTP7 ? [] : [{ val: 2, label: 'doppelt' }])
                               ].map((opt) => (
                                 <button
                                   key={opt.val}
@@ -884,6 +954,12 @@ const App: React.FC = () => {
                                 </button>
                               ))}
                             </div>
+                            )}
+                            {isTP7 && (
+                              <div className="text-[10px] text-amber-600 px-1">
+                                TP 7: Max. einfacher Einheitssatz (§ 23 Abs. 1 RATG)
+                              </div>
+                            )}
                           </div>
 
                           {/* ERGEBNIS-SEKTION */}

@@ -78,6 +78,8 @@ export interface LegalService {
   customParties?: number; // Eigene Streitgenossen für diese Leistung (überschreibt Basispanel)
   verbindung?: 'keine' | 'vorab' | 'wohnort' | 'andere'; // e.V. Verbindung: keine, Vorabentscheidung (50%), Wohnort (10%), andere (25%)
   is473aZPO?: boolean; // TP 3B Ia: nach § 473a ZPO → Entlohnung halbiert
+  isRaRaaErforderlich?: boolean; // TP 7: false = TP 7/1 (Gehilfe), true = TP 7/2 (RA/RAA erforderlich)
+  tp?: string; // Tarifpost aus Katalog (z.B. 'TP7', 'TP5', etc.)
 }
 
 export enum PleadingSubtype {
