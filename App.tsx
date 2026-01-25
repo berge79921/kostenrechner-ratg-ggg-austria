@@ -969,13 +969,19 @@ const App: React.FC = () => {
                       const isTP3C = s.type === ServiceType.PLEADING_TP3C;
                       const isTP1 = s.type === ServiceType.PLEADING_TP1;
                       const isTP2 = s.type === ServiceType.PLEADING_TP2;
+                      const isTP5 = s.type === ServiceType.PLEADING_TP5;
+                      const isTP6 = s.type === ServiceType.PLEADING_TP6;
+                      // TP 5, 6, 8, 9: KEIN Einheitssatz erlaubt
+                      const isKeinES = isTP5 || isTP6 || s.tp === 'TP8' || s.tp === 'TP9';
 
                       // Fix: Map correct TP type based on ServiceType
-                      let tpType: 'TP1' | 'TP2' | 'TP3A' | 'TP3B' | 'TP3C' = 'TP3A';
+                      let tpType: 'TP1' | 'TP2' | 'TP3A' | 'TP3B' | 'TP3C' | 'TP5' | 'TP6' = 'TP3A';
                       if (isTP1) tpType = 'TP1';
                       else if (isTP2) tpType = 'TP2';
                       else if (isTP3B) tpType = 'TP3B';
                       else if (isTP3C) tpType = 'TP3C';
+                      else if (isTP5) tpType = 'TP5';
+                      else if (isTP6) tpType = 'TP6';
 
                       const tariffInfo = getTariffBase(serviceBmgl, tpType);
 
@@ -991,8 +997,11 @@ const App: React.FC = () => {
                       const basisFuerES = entlohnung + verbindungBetrag;
 
                       // ES-Rate: Bei TP3B kann auch 3x (180%/150%) und 4x (240%/200%) vorkommen
+                      // WICHTIG: TP 5, 6, 8, 9 haben KEINEN Einheitssatz
+                      // TP 7 hat max. EINFACHEN Einheitssatz
                       const baseEsRate = serviceBmgl <= 1017000 ? 0.6 : 0.5;
-                      const esRate = s.esMultiplier === 0 ? 0 : baseEsRate * s.esMultiplier;
+                      const effectiveEsMultiplier = isKeinES ? 0 : (s.tp === 'TP7' ? Math.min(s.esMultiplier, 1) : s.esMultiplier);
+                      const esRate = effectiveEsMultiplier === 0 ? 0 : baseEsRate * effectiveEsMultiplier;
                       const esZuschlag = Math.round(basisFuerES * esRate);
 
                       const basisFuerSG = entlohnung + verbindungBetrag + esZuschlag;
@@ -1002,12 +1011,21 @@ const App: React.FC = () => {
                       const ust = Math.round(nettoSumme * 0.2);
                       const bruttoSumme = nettoSumme + ust;
 
-                      // Einheitssatz-Optionen: TP3C nur keiner/einfach, TP3B hat 5, TP3A/2/1 hat 3
-                      const esOptions = isTP3C
-                        ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }]
-                        : isTP3B
-                          ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }, { val: 2, label: 'doppelt' }, { val: 3, label: 'dreifach' }, { val: 4, label: 'vierfach' }]
-                          : [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }, { val: 2, label: 'doppelt' }];
+                      // Einheitssatz-Optionen:
+                      // - TP 5, 6, 8, 9: KEIN Einheitssatz (nur "keiner")
+                      // - TP 7: max. einfacher ES (keiner/einfach)
+                      // - TP3C: nur keiner/einfach
+                      // - TP3B: hat 5 Optionen
+                      // - TP3A/2/1: hat 3 Optionen
+                      const esOptions = isKeinES
+                        ? [{ val: 0, label: 'keiner' }]
+                        : s.tp === 'TP7'
+                          ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }]
+                          : isTP3C
+                            ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }]
+                            : isTP3B
+                              ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }, { val: 2, label: 'doppelt' }, { val: 3, label: 'dreifach' }, { val: 4, label: 'vierfach' }]
+                              : [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }, { val: 2, label: 'doppelt' }];
 
                       const esLabel = s.esMultiplier === 0 ? 'keiner' : s.esMultiplier === 1 ? 'einfach' : s.esMultiplier === 2 ? 'doppelt' : s.esMultiplier === 3 ? 'dreifach' : 'vierfach';
 
@@ -1081,10 +1099,15 @@ const App: React.FC = () => {
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
-                              <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-                                {esLabel}
+                              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${isKeinES ? 'text-red-600 bg-red-50 border-red-200' : 'text-blue-600 bg-blue-50 border-blue-100'}`}>
+                                {isKeinES ? 'KEINER' : esLabel}
                               </span>
                             </div>
+                            {isKeinES ? (
+                              <div className="flex p-3 bg-red-50/50 rounded-xl border border-red-200/50 text-xs text-red-600">
+                                Kein Einheitssatz bei TP {tpType.replace('TP', '')} (§ 23 Abs. 1 RATG)
+                              </div>
+                            ) : (
                             <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
                               {esOptions.map((opt) => (
                                 <button
@@ -1096,6 +1119,7 @@ const App: React.FC = () => {
                                 </button>
                               ))}
                             </div>
+                            )}
                           </div>
 
                           {/* ERV Toggle */}
