@@ -282,3 +282,70 @@ export interface KanzleiData {
   kanzleiPlz: string;
   kanzleiOrt: string;
 }
+
+// ============================================================================
+// MULTI-KOSTENNOTEN-VERWALTUNG
+// ============================================================================
+
+export type AppView = 'list' | 'editor';
+
+// Alle Berechnungsdaten einer Kostennote
+export interface KostennoteState {
+  caseMode: CaseMode;
+  isVatFree: boolean;
+  // Civil
+  bmgl: number;
+  procedureType: ProcedureType;
+  additionalParties: number;
+  autoGgg: boolean;
+  manualGgg: number;
+  isVerbandsklage: boolean;
+  services: LegalService[];
+  // Criminal
+  courtType: import('./lib/ahk').CourtType;
+  strafServices: StrafService[];
+  strafStreitgenossen: number;
+  erfolgszuschlagProzent: number;
+  // Detention
+  haftBmglStufe: HaftBmglStufe;
+  haftServices: HaftService[];
+  // VStraf
+  vstrafStufe: VStrafStufe;
+  vstrafVerfallswert: number;
+  vstrafServices: VStrafService[];
+  vstrafStreitgenossen: number;
+  vstrafErfolgszuschlag: number;
+}
+
+// Gespeicherte Kostennote mit Metadaten
+export interface SavedKostennote {
+  id: string;                    // UUID
+  createdAt: string;             // ISO date
+  updatedAt: string;             // ISO date
+  metadata: CaseMetadata;
+  state: KostennoteState;
+}
+
+// Default-State für neue Kostennote
+export const DEFAULT_KOSTENNOTE_STATE: KostennoteState = {
+  caseMode: CaseMode.CIVIL,
+  isVatFree: false,
+  bmgl: 25000,
+  procedureType: ProcedureType.ZIVILPROZESS,
+  additionalParties: 0,
+  autoGgg: true,
+  manualGgg: 0,
+  isVerbandsklage: false,
+  services: [],
+  courtType: 'BG',
+  strafServices: [],
+  strafStreitgenossen: 0,
+  erfolgszuschlagProzent: 0,
+  haftBmglStufe: 'ER_GH',
+  haftServices: [],
+  vstrafStufe: 'Z2',
+  vstrafVerfallswert: 0,
+  vstrafServices: [],
+  vstrafStreitgenossen: 0,
+  vstrafErfolgszuschlag: 0,
+};

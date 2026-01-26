@@ -62,13 +62,15 @@ import { calculateVStrafCosts } from './lib/vstraf-calculator';
 import { VSTRAF_BEMESSUNGSGRUNDLAGEN, VSTRAF_STUFE_LABELS, VSTRAF_LEISTUNG_LABELS, VSTRAF_CATEGORY_LABELS, getGroupedVStrafCatalog, getDefaultVStrafService, isVStrafTagsatzung, VStrafCatalogCategory, getVStrafCourtType, VStrafCourtType } from './lib/vstraf-catalog';
 import { ValuationModal } from './components/ValuationModal';
 import { ProWikiModal } from './components/ProWikiModal';
-import { BookOpen, Lock, Upload, Save } from 'lucide-react';
+import { BookOpen, Lock, Upload, Save, ArrowLeft, List } from 'lucide-react';
 // CSV Export/Import
-import { CaseMetadata, DEFAULT_CASE_METADATA, KanzleiData } from './types';
-import { exportToCSV, generateFilename, ExportState } from './lib/csvExport';
-import { importFromCSV } from './lib/csvImport';
+import { CaseMetadata, DEFAULT_CASE_METADATA, KanzleiData, AppView, SavedKostennote, KostennoteState, DEFAULT_KOSTENNOTE_STATE } from './types';
+import { exportToCSV, generateFilename, ExportState, exportAllKostennoten, generateArchiveFilename } from './lib/csvExport';
+import { importFromCSV, importMultipleKostennoten } from './lib/csvImport';
 import { saveKanzleiData, loadKanzleiData } from './lib/storage';
+import { loadAllKostennoten, saveAllKostennoten, saveKostennote, deleteKostennote as deleteKostennoteFromStore, createNewKostennote } from './lib/kostennotenStore';
 import { CaseMetadataForm } from './components/CaseMetadataForm';
+import { KostennotenList } from './components/KostennotenList';
 
 // Helper: Map ServiceType to TagsatzungType
 function getTagsatzungType(serviceType: ServiceType): TagsatzungType | null {
@@ -179,8 +181,16 @@ const App: React.FC = () => {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lade Kanzleidaten aus localStorage beim Start
+  // --- Multi-Kostennoten State ---
+  const [view, setView] = useState<AppView>('list');
+  const [kostennoten, setKostennoten] = useState<SavedKostennote[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Lade Kostennoten aus localStorage beim Start
   useEffect(() => {
+    const loaded = loadAllKostennoten();
+    setKostennoten(loaded);
+    // Lade auch Kanzleidaten
     const savedKanzlei = loadKanzleiData();
     if (savedKanzlei) {
       setCaseMetadata(prev => ({ ...prev, ...savedKanzlei }));
@@ -190,6 +200,153 @@ const App: React.FC = () => {
   // Handler für Kanzleidaten-Änderung (speichert in localStorage)
   const handleKanzleiChange = (data: KanzleiData) => {
     saveKanzleiData(data);
+  };
+
+  // State aus aktiver Kostennote laden
+  const loadKostennoteState = (k: SavedKostennote) => {
+    setCaseMetadata(k.metadata);
+    setCaseMode(k.state.caseMode);
+    setIsVatFree(k.state.isVatFree);
+    setBmgl(k.state.bmgl);
+    setProcedureType(k.state.procedureType);
+    setAdditionalParties(k.state.additionalParties);
+    setAutoGgg(k.state.autoGgg);
+    setManualGgg(k.state.manualGgg);
+    setIsVerbandsklage(k.state.isVerbandsklage);
+    setServices(k.state.services);
+    setCourtType(k.state.courtType);
+    setStrafServices(k.state.strafServices);
+    setStrafStreitgenossen(k.state.strafStreitgenossen);
+    setErfolgszuschlagProzent(k.state.erfolgszuschlagProzent);
+    setHaftBmglStufe(k.state.haftBmglStufe);
+    setHaftServices(k.state.haftServices);
+    setVstrafStufe(k.state.vstrafStufe);
+    setVstrafVerfallswert(k.state.vstrafVerfallswert);
+    setVstrafServices(k.state.vstrafServices);
+    setVstrafStreitgenossen(k.state.vstrafStreitgenossen);
+    setVstrafErfolgszuschlag(k.state.vstrafErfolgszuschlag);
+  };
+
+  // Aktuellen State als Kostennote speichern
+  const saveCurrentKostennote = () => {
+    if (!activeId) return;
+    const now = new Date().toISOString().split('T')[0];
+    const updated: SavedKostennote = {
+      id: activeId,
+      createdAt: kostennoten.find(k => k.id === activeId)?.createdAt || now,
+      updatedAt: now,
+      metadata: caseMetadata,
+      state: {
+        caseMode,
+        isVatFree,
+        bmgl,
+        procedureType,
+        additionalParties,
+        autoGgg,
+        manualGgg,
+        isVerbandsklage,
+        services,
+        courtType,
+        strafServices,
+        strafStreitgenossen,
+        erfolgszuschlagProzent,
+        haftBmglStufe,
+        haftServices,
+        vstrafStufe,
+        vstrafVerfallswert,
+        vstrafServices,
+        vstrafStreitgenossen,
+        vstrafErfolgszuschlag,
+      },
+    };
+    saveKostennote(updated);
+    setKostennoten(prev => prev.map(k => k.id === activeId ? updated : k));
+  };
+
+  // Auto-Save (debounced)
+  useEffect(() => {
+    if (!activeId || view !== 'editor') return;
+    const timeout = setTimeout(() => {
+      saveCurrentKostennote();
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [caseMode, isVatFree, bmgl, procedureType, additionalParties, autoGgg, manualGgg, isVerbandsklage, services, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag, caseMetadata]);
+
+  // Handlers für Kostennoten-Verwaltung
+  const handleNewKostennote = () => {
+    const savedKanzlei = loadKanzleiData();
+    const now = new Date().toISOString().split('T')[0];
+    const newK = createNewKostennote(
+      savedKanzlei ? { ...savedKanzlei, erstelltAm: now } : { erstelltAm: now },
+      { ...DEFAULT_KOSTENNOTE_STATE }
+    );
+    saveKostennote(newK);
+    setKostennoten(prev => [newK, ...prev]);
+    loadKostennoteState(newK);
+    setActiveId(newK.id);
+    setView('editor');
+  };
+
+  const handleEditKostennote = (id: string) => {
+    const k = kostennoten.find(k => k.id === id);
+    if (k) {
+      loadKostennoteState(k);
+      setActiveId(id);
+      setView('editor');
+    }
+  };
+
+  const handleDeleteKostennote = (id: string) => {
+    deleteKostennoteFromStore(id);
+    setKostennoten(prev => prev.filter(k => k.id !== id));
+    if (activeId === id) {
+      setActiveId(null);
+      setView('list');
+    }
+  };
+
+  const handleBackToList = () => {
+    saveCurrentKostennote();
+    setActiveId(null);
+    setView('list');
+  };
+
+  const handleImportKostennoten = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const csv = e.target?.result as string;
+      const result = importMultipleKostennoten(csv);
+      if (result.success && result.kostennoten.length > 0) {
+        // Merge mit existierenden (neue IDs generieren falls Duplikate)
+        const existingIds = new Set(kostennoten.map(k => k.id));
+        const newKostennoten = result.kostennoten.map(k => {
+          if (existingIds.has(k.id)) {
+            return { ...k, id: crypto.randomUUID() };
+          }
+          return k;
+        });
+        const merged = [...newKostennoten, ...kostennoten];
+        setKostennoten(merged);
+        saveAllKostennoten(merged);
+        alert(`${result.kostennoten.length} Kostennote(n) importiert (${result.version} Format)`);
+      } else {
+        alert('Import fehlgeschlagen:\n' + result.errors.join('\n'));
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExportAllKostennoten = () => {
+    const csv = exportAllKostennoten(kostennoten);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = generateArchiveFilename();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // --- Calculations ---
@@ -688,98 +845,109 @@ const App: React.FC = () => {
               Kosten<span className="text-blue-500">Kalkulator</span>
             </h1>
 
-            {/* Zivil/Straf Mode Switch */}
-            <div className="flex p-1.5 gap-1 bg-slate-800/80 rounded-2xl border border-white/10 w-fit">
-              <button
-                onClick={() => setCaseMode(CaseMode.CIVIL)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  caseMode === CaseMode.CIVIL
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Scale className="h-4 w-4" />
-                Zivilrecht
-              </button>
-              <button
-                onClick={() => setCaseMode(CaseMode.CRIMINAL)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  caseMode === CaseMode.CRIMINAL
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Gavel className="h-4 w-4" />
-                Strafrecht
-              </button>
-              <button
-                onClick={() => setCaseMode(CaseMode.DETENTION)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  caseMode === CaseMode.DETENTION
-                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Lock className="h-4 w-4" />
-                Haftrecht
-              </button>
-              <button
-                onClick={() => setCaseMode(CaseMode.VSTRAF)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  caseMode === CaseMode.VSTRAF
-                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Building2 className="h-4 w-4" />
-                V-Straf
-              </button>
-            </div>
+            {/* Zivil/Straf Mode Switch - nur im Editor */}
+            {view === 'editor' && (
+              <div className="flex p-1.5 gap-1 bg-slate-800/80 rounded-2xl border border-white/10 w-fit">
+                <button
+                  onClick={() => setCaseMode(CaseMode.CIVIL)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    caseMode === CaseMode.CIVIL
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Scale className="h-4 w-4" />
+                  Zivilrecht
+                </button>
+                <button
+                  onClick={() => setCaseMode(CaseMode.CRIMINAL)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    caseMode === CaseMode.CRIMINAL
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Gavel className="h-4 w-4" />
+                  Strafrecht
+                </button>
+                <button
+                  onClick={() => setCaseMode(CaseMode.DETENTION)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    caseMode === CaseMode.DETENTION
+                      ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Lock className="h-4 w-4" />
+                  Haftrecht
+                </button>
+                <button
+                  onClick={() => setCaseMode(CaseMode.VSTRAF)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    caseMode === CaseMode.VSTRAF
+                      ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Building2 className="h-4 w-4" />
+                  V-Straf
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={() => setShowWiki(true)}
-              className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10"
-            >
-              <BookOpen className="h-5 w-5" /> Wiki
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-emerald-600/80 hover:bg-emerald-600 text-white font-bold transition-all border border-emerald-500/30"
-              title="Kostennote als CSV speichern"
-            >
-              <Save className="h-5 w-5" /> Speichern
-            </button>
-            <label
-              className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10 cursor-pointer"
-              title="CSV-Datei laden"
-            >
-              <Upload className="h-5 w-5" /> Laden
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".csv"
-                onChange={handleImportCSV}
-                className="hidden"
-              />
-            </label>
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg shadow-blue-600/20"
-            >
-              <Download className="h-5 w-5" /> PDF Export
-            </button>
+            {view === 'editor' ? (
+              <>
+                <button
+                  onClick={handleBackToList}
+                  className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10"
+                >
+                  <ArrowLeft className="h-5 w-5" /> Zurück
+                </button>
+                <button
+                  onClick={() => setShowWiki(true)}
+                  className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10"
+                >
+                  <BookOpen className="h-5 w-5" /> Wiki
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg shadow-blue-600/20"
+                >
+                  <Download className="h-5 w-5" /> PDF Export
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowWiki(true)}
+                className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10"
+              >
+                <BookOpen className="h-5 w-5" /> Wiki
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Falldaten-Formular */}
-        <CaseMetadataForm
-          metadata={caseMetadata}
-          onChange={setCaseMetadata}
-          onKanzleiChange={handleKanzleiChange}
-        />
+        {/* LISTE oder EDITOR */}
+        {view === 'list' ? (
+          <KostennotenList
+            kostennoten={kostennoten}
+            onEdit={handleEditKostennote}
+            onDelete={handleDeleteKostennote}
+            onNew={handleNewKostennote}
+            onImport={handleImportKostennoten}
+            onExportAll={handleExportAllKostennoten}
+          />
+        ) : (
+          <>
+            {/* Falldaten-Formular */}
+            <CaseMetadataForm
+              metadata={caseMetadata}
+              onChange={setCaseMetadata}
+              onKanzleiChange={handleKanzleiChange}
+            />
 
-        <div className="grid gap-8 lg:grid-cols-12">
+            <div className="grid gap-8 lg:grid-cols-12">
           {/* Settings & Service Cards - Left Column (scrollable) */}
           <div className="lg:col-span-5 space-y-6">
             <GlassCard variant="light" title={caseMode === CaseMode.CRIMINAL ? "Strafverfahren" : caseMode === CaseMode.DETENTION ? "Haftverfahren" : caseMode === CaseMode.VSTRAF ? "Verwaltungsstrafsachen" : "Zivilverfahren"} className={`ring-1 ${caseMode === CaseMode.CRIMINAL ? 'ring-red-500/30' : caseMode === CaseMode.DETENTION ? 'ring-amber-500/30' : caseMode === CaseMode.VSTRAF ? 'ring-orange-500/30' : 'ring-white/20'}`}>
@@ -4266,6 +4434,8 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       <style>{`

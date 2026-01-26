@@ -194,3 +194,104 @@ export function generateFilename(metadata: CaseMetadata): string {
   }
   return `Kostennote_${metadata.erstelltAm}.csv`;
 }
+
+// ============================================================================
+// MULTI-KOSTENNOTEN EXPORT (V2.0)
+// ============================================================================
+
+import type { SavedKostennote, KostennoteState } from '../types';
+
+// Konvertiere SavedKostennote zu ExportState
+function kostennoteToExportState(k: SavedKostennote): ExportState {
+  return {
+    metadata: k.metadata,
+    ...k.state,
+  };
+}
+
+// Exportiere eine einzelne Kostennote (für V2.0 Format)
+function exportSingleKostennoteV2(k: SavedKostennote): string[] {
+  const lines: string[] = [];
+  lines.push(`KOSTENNOTE_START;${k.id}`);
+  lines.push(`META;createdAt;${k.createdAt}`);
+  lines.push(`META;updatedAt;${k.updatedAt}`);
+
+  // Metadata
+  const metaFields = [
+    'geschaeftszahl', 'gericht',
+    'parteiName', 'parteiStrasse', 'parteiPlz', 'parteiOrt',
+    'kanzleiName', 'kanzleiStrasse', 'kanzleiPlz', 'kanzleiOrt',
+    'erstelltAm', 'version'
+  ] as const;
+  for (const key of metaFields) {
+    lines.push(`META;${key};${escapeCSV(k.metadata[key])}`);
+  }
+
+  const s = k.state;
+
+  // Common state
+  lines.push(`STATE;caseMode;${s.caseMode}`);
+  lines.push(`STATE;isVatFree;${s.isVatFree ? '1' : '0'}`);
+
+  // Civil state
+  lines.push(`STATE;bmgl;${s.bmgl}`);
+  lines.push(`STATE;procedureType;${s.procedureType}`);
+  lines.push(`STATE;additionalParties;${s.additionalParties}`);
+  lines.push(`STATE;autoGgg;${s.autoGgg ? '1' : '0'}`);
+  lines.push(`STATE;manualGgg;${s.manualGgg}`);
+  lines.push(`STATE;isVerbandsklage;${s.isVerbandsklage ? '1' : '0'}`);
+
+  // Criminal state
+  lines.push(`STATE;courtType;${s.courtType}`);
+  lines.push(`STATE;strafStreitgenossen;${s.strafStreitgenossen}`);
+  lines.push(`STATE;erfolgszuschlagProzent;${s.erfolgszuschlagProzent}`);
+
+  // Detention state
+  lines.push(`STATE;haftBmglStufe;${s.haftBmglStufe}`);
+
+  // VStraf state
+  lines.push(`STATE;vstrafStufe;${s.vstrafStufe}`);
+  lines.push(`STATE;vstrafVerfallswert;${s.vstrafVerfallswert}`);
+  lines.push(`STATE;vstrafStreitgenossen;${s.vstrafStreitgenossen}`);
+  lines.push(`STATE;vstrafErfolgszuschlag;${s.vstrafErfolgszuschlag}`);
+
+  // Services
+  for (const svc of s.services) {
+    lines.push(`SERVICE;CIVIL;${serializeService(svc)}`);
+  }
+  for (const svc of s.strafServices) {
+    lines.push(`SERVICE;CRIMINAL;${serializeStrafService(svc)}`);
+  }
+  for (const svc of s.haftServices) {
+    lines.push(`SERVICE;DETENTION;${serializeHaftService(svc)}`);
+  }
+  for (const svc of s.vstrafServices) {
+    lines.push(`SERVICE;VSTRAF;${serializeVStrafService(svc)}`);
+  }
+
+  lines.push(`KOSTENNOTE_END;${k.id}`);
+  return lines;
+}
+
+// Exportiere alle Kostennoten als V2.0 Archiv
+export function exportAllKostennoten(kostennoten: SavedKostennote[]): string {
+  const lines: string[] = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  // Header V2.0
+  lines.push(`KOSTENNOTENARCHIV;VERSION;2.0;ERSTELLT;${today};ANZAHL;${kostennoten.length}`);
+  lines.push('');
+
+  // Jede Kostennote
+  for (const k of kostennoten) {
+    lines.push(...exportSingleKostennoteV2(k));
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+export function generateArchiveFilename(): string {
+  const today = new Date().toISOString().split('T')[0];
+  return `Alle_Kostennoten_${today}.csv`;
+}

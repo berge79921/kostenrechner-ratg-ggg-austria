@@ -626,4 +626,138 @@ export const RATG_RUNDUNG = {
 
 export const DISCLAIMER_TEXT = `Dieser Kalkulator ist experimentell. Es wird keine Haftung für die Richtigkeit der Berechnungen übernommen. Die Ergebnisse dienen ausschließlich zu Informationszwecken und ersetzen keine professionelle Rechtsberatung.`;
 
-export const INTRO_TEXT = `Dieser Kalkulator richtet sich an Praktiker und interessierte Rechtsanwender, um die Kostenlogik der österreichischen Tarife transparent zu machen.`;
+export const INTRO_TEXT = `Der KostenKalkulator berechnet Rechtsanwaltskosten nach RATG und AHK sowie Gerichtsgebühren nach GGG. Verwalten Sie beliebig viele Kostennoten, exportieren Sie als PDF oder CSV und importieren Sie bestehende Daten.`;
+
+// Tutorial-Daten für WelcomeTab
+export const TUTORIAL_SECTIONS = [
+  {
+    id: 'overview',
+    title: 'Übersicht',
+    steps: [
+      {
+        title: 'Listenansicht',
+        description: 'Beim Start sehen Sie alle gespeicherten Kostennoten. Von hier können Sie neue erstellen, bestehende bearbeiten oder löschen.',
+      },
+      {
+        title: 'Editor',
+        description: 'Im Editor bearbeiten Sie eine einzelne Kostennote. Wählen Sie zwischen Zivilrecht, Strafrecht, Haftrecht oder Verwaltungsstrafrecht.',
+      },
+      {
+        title: 'Auto-Speichern',
+        description: 'Alle Änderungen werden automatisch im Browser gespeichert (localStorage). Ihre Daten bleiben auch nach Schließen des Browsers erhalten.',
+      },
+    ],
+  },
+  {
+    id: 'civil',
+    title: 'Zivilrecht (RATG)',
+    steps: [
+      {
+        title: 'Streitwert eingeben',
+        description: 'Die Bemessungsgrundlage bestimmt die Tarifstufe. Sie können auch den Streitwertrechner verwenden.',
+      },
+      {
+        title: 'Verfahrensart wählen',
+        description: 'Zivilprozess, Exekution, Außerstreit oder Insolvenz - beeinflusst die verfügbaren Tarifposten.',
+      },
+      {
+        title: 'Leistungen hinzufügen',
+        description: 'Klicken Sie auf "+ Leistung" und wählen Sie aus dem Katalog (TP 1-7). Jede Leistung kann individuell angepasst werden.',
+      },
+      {
+        title: 'Einheitssatz & ERV',
+        description: 'Der Einheitssatz (60%/50% nach § 23 RATG) wird automatisch berechnet. ERV-Zuschlag optional.',
+      },
+      {
+        title: 'Streitgenossen',
+        description: 'Bei mehreren vertretenen Parteien wird der Zuschlag nach § 15 RATG automatisch addiert.',
+      },
+    ],
+  },
+  {
+    id: 'criminal',
+    title: 'Strafrecht (AHK § 9)',
+    steps: [
+      {
+        title: 'Gerichtstyp wählen',
+        description: 'BG, Einzelrichter, Schöffen- oder Geschworenengericht. Bestimmt die Bemessungsgrundlage.',
+      },
+      {
+        title: 'Leistungen erfassen',
+        description: 'Hauptverhandlungen, Schriftsätze, Rechtsmittel. Dauer in halben Stunden angeben.',
+      },
+      {
+        title: 'Erfolgszuschlag',
+        description: 'Optional: Zuschlag bei positivem Verfahrensausgang (0-100%).',
+      },
+    ],
+  },
+  {
+    id: 'detention',
+    title: 'Haftrecht (AHK § 9 Z 5)',
+    steps: [
+      {
+        title: 'Ausgangsverfahren',
+        description: 'Wählen Sie das Gericht des Hauptverfahrens - bestimmt die BMGL für RATG-Leistungen.',
+      },
+      {
+        title: 'Fixe Haft-Tarife',
+        description: 'Haftverhandlungen 1./2. Instanz, Grundrechtsbeschwerde etc. haben fixe Sätze.',
+      },
+      {
+        title: 'RATG-Leistungen',
+        description: 'Besuche, Anträge werden nach RATG mit der BMGL des Ausgangsverfahrens berechnet.',
+      },
+    ],
+  },
+  {
+    id: 'vstraf',
+    title: 'Verwaltungsstrafrecht (AHK § 13)',
+    steps: [
+      {
+        title: 'Stufe nach Strafdrohung',
+        description: 'Z 1-6 nach der angedrohten Geldstrafe. Bestimmt die Bemessungsgrundlage.',
+      },
+      {
+        title: 'Verfallswert',
+        description: 'Bei angedrohtem Verfall über € 730 erhöht sich die BMGL um diesen Wert.',
+      },
+      {
+        title: 'Nur Strafhöhe',
+        description: 'Bei Rechtsmitteln nur wegen Strafhöhe: reduzierter Tarif nach § 13 Abs 4.',
+      },
+    ],
+  },
+  {
+    id: 'export',
+    title: 'Export & Import',
+    steps: [
+      {
+        title: 'PDF-Export',
+        description: 'Im Editor: "PDF Export" erstellt ein vollständiges Kostenverzeichnis mit Berechnungsdetails.',
+      },
+      {
+        title: 'CSV-Export alle',
+        description: 'In der Listenansicht: "Alle exportieren" speichert sämtliche Kostennoten in einer CSV-Datei.',
+      },
+      {
+        title: 'CSV-Import',
+        description: 'Importieren Sie CSV-Dateien (V1.0 einzeln oder V2.0 Archiv). Bestehende Daten bleiben erhalten.',
+      },
+    ],
+  },
+  {
+    id: 'metadata',
+    title: 'Falldaten',
+    steps: [
+      {
+        title: 'Geschäftszahl & Gericht',
+        description: 'Diese Daten erscheinen im PDF-Export und helfen bei der Organisation.',
+      },
+      {
+        title: 'Partei & Kanzlei',
+        description: 'Adressdaten für das Kostenverzeichnis. Kanzleidaten werden für neue Kostennoten vorausgefüllt.',
+      },
+    ],
+  },
+];
