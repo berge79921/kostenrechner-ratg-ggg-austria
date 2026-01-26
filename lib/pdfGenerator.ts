@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { TotalResult, ProcedureType, CaseMode } from '../types';
+import { TotalResult, ProcedureType, CaseMode, CaseMetadata } from '../types';
 import { formatEuro } from './calculator';
 
 export interface PDFOptions {
@@ -21,6 +21,8 @@ export interface PDFOptions {
   vstrafStufe?: string;
   vstrafStufeLabel?: string;
   vstrafVerfallswert?: number;
+  // Falldaten für Header
+  caseMetadata?: CaseMetadata;
 }
 
 export function generateKostenverzeichnisPDF(
@@ -35,21 +37,80 @@ export function generateKostenverzeichnisPDF(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const caseMode = options?.caseMode ?? CaseMode.CIVIL;
+  const meta = options?.caseMetadata;
 
-  // Header Section
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('KOSTENVERZEICHNIS', 14, 22);
+  let yPos = 20;
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Erstellt am: ${new Date().toLocaleDateString('de-AT')}`, 14, 30);
+  // --- Falldaten-Header (wenn vorhanden) ---
+  if (meta && (meta.geschaeftszahl || meta.parteiName || meta.kanzleiName)) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('KOSTENVERZEICHNIS', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
 
-  // Case Parameter Box
-  doc.setDrawColor(200);
-  doc.line(14, 35, pageWidth - 14, 35);
+    // Geschäftszahl und Datum
+    doc.setFontSize(10);
+    if (meta.geschaeftszahl) {
+      doc.text(`GZ: ${meta.geschaeftszahl}`, 14, yPos);
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Datum: ${new Date().toLocaleDateString('de-AT')}`, pageWidth - 14, yPos, { align: 'right' });
+    yPos += 6;
 
-  let yPos = 42;
+    // Gericht
+    if (meta.gericht) {
+      doc.text(`Gericht: ${meta.gericht}`, 14, yPos);
+      yPos += 8;
+    }
+
+    // Zwei-Spalten: Partei / Kanzlei
+    if (meta.parteiName || meta.kanzleiName) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Partei:', 14, yPos);
+      doc.text('Vertreten durch:', pageWidth / 2 + 5, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+
+      // Partei
+      if (meta.parteiName) doc.text(meta.parteiName, 14, yPos);
+      // Kanzlei
+      if (meta.kanzleiName) doc.text(meta.kanzleiName, pageWidth / 2 + 5, yPos);
+      yPos += 5;
+
+      if (meta.parteiStrasse) doc.text(meta.parteiStrasse, 14, yPos);
+      if (meta.kanzleiStrasse) doc.text(meta.kanzleiStrasse, pageWidth / 2 + 5, yPos);
+      yPos += 5;
+
+      const parteiOrt = [meta.parteiPlz, meta.parteiOrt].filter(Boolean).join(' ');
+      const kanzleiOrt = [meta.kanzleiPlz, meta.kanzleiOrt].filter(Boolean).join(' ');
+      if (parteiOrt) doc.text(parteiOrt, 14, yPos);
+      if (kanzleiOrt) doc.text(kanzleiOrt, pageWidth / 2 + 5, yPos);
+      yPos += 8;
+    }
+
+    // Trennlinie
+    doc.setDrawColor(200);
+    doc.line(14, yPos, pageWidth - 14, yPos);
+    yPos += 8;
+  } else {
+    // Standard-Header ohne Falldaten
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('KOSTENVERZEICHNIS', 14, 22);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Erstellt am: ${new Date().toLocaleDateString('de-AT')}`, 14, 30);
+
+    // Case Parameter Box
+    doc.setDrawColor(200);
+    doc.line(14, 35, pageWidth - 14, 35);
+
+    yPos = 42;
+  }
 
   // Verfahrensart
   doc.setFont('helvetica', 'bold');

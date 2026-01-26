@@ -236,3 +236,49 @@ export interface VStrafService {
   ervRateOverride?: 'initial' | 'regular';
   isNurStrafhoehe?: boolean;     // § 13 Abs 4: nur Strafhöhe → reduzierter Tarif
 }
+
+// ============================================================================
+// KOSTENNOTE EXPORT/IMPORT - Falldaten
+// ============================================================================
+
+export interface CaseMetadata {
+  // Fall-Identifikation
+  geschaeftszahl: string;      // z.B. "1 Cg 123/24k"
+  gericht: string;             // z.B. "LG Wien"
+  // Vertretene Partei
+  parteiName: string;
+  parteiStrasse: string;
+  parteiPlz: string;
+  parteiOrt: string;
+  // Kanzlei (eigene Daten)
+  kanzleiName: string;
+  kanzleiStrasse: string;
+  kanzleiPlz: string;
+  kanzleiOrt: string;
+  // Meta
+  erstelltAm: string;          // ISO date YYYY-MM-DD
+  version: string;             // CSV format version
+}
+
+export const DEFAULT_CASE_METADATA: CaseMetadata = {
+  geschaeftszahl: '',
+  gericht: '',
+  parteiName: '',
+  parteiStrasse: '',
+  parteiPlz: '',
+  parteiOrt: '',
+  kanzleiName: '',
+  kanzleiStrasse: '',
+  kanzleiPlz: '',
+  kanzleiOrt: '',
+  erstelltAm: new Date().toISOString().split('T')[0],
+  version: '1.0',
+};
+
+// Kanzleidaten für localStorage-Persistenz
+export interface KanzleiData {
+  kanzleiName: string;
+  kanzleiStrasse: string;
+  kanzleiPlz: string;
+  kanzleiOrt: string;
+}

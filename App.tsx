@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Scale,
   Plus,
@@ -62,7 +62,13 @@ import { calculateVStrafCosts } from './lib/vstraf-calculator';
 import { VSTRAF_BEMESSUNGSGRUNDLAGEN, VSTRAF_STUFE_LABELS, VSTRAF_LEISTUNG_LABELS, VSTRAF_CATEGORY_LABELS, getGroupedVStrafCatalog, getDefaultVStrafService, isVStrafTagsatzung, VStrafCatalogCategory, getVStrafCourtType, VStrafCourtType } from './lib/vstraf-catalog';
 import { ValuationModal } from './components/ValuationModal';
 import { ProWikiModal } from './components/ProWikiModal';
-import { BookOpen, Lock } from 'lucide-react';
+import { BookOpen, Lock, Upload, Save } from 'lucide-react';
+// CSV Export/Import
+import { CaseMetadata, DEFAULT_CASE_METADATA, KanzleiData } from './types';
+import { exportToCSV, generateFilename, ExportState } from './lib/csvExport';
+import { importFromCSV } from './lib/csvImport';
+import { saveKanzleiData, loadKanzleiData } from './lib/storage';
+import { CaseMetadataForm } from './components/CaseMetadataForm';
 
 // Helper: Map ServiceType to TagsatzungType
 function getTagsatzungType(serviceType: ServiceType): TagsatzungType | null {
@@ -165,6 +171,26 @@ const App: React.FC = () => {
   const [showVstrafCatalog, setShowVstrafCatalog] = useState(false);
   const [vstrafSearchTerm, setVstrafSearchTerm] = useState("");
   const [openVstrafServiceDropdown, setOpenVstrafServiceDropdown] = useState<string | null>(null);
+
+  // --- CSV Export/Import State ---
+  const [caseMetadata, setCaseMetadata] = useState<CaseMetadata>(() => {
+    // Initialisiere mit Default, Kanzleidaten werden in useEffect geladen
+    return { ...DEFAULT_CASE_METADATA, erstelltAm: new Date().toISOString().split('T')[0] };
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lade Kanzleidaten aus localStorage beim Start
+  useEffect(() => {
+    const savedKanzlei = loadKanzleiData();
+    if (savedKanzlei) {
+      setCaseMetadata(prev => ({ ...prev, ...savedKanzlei }));
+    }
+  }, []);
+
+  // Handler für Kanzleidaten-Änderung (speichert in localStorage)
+  const handleKanzleiChange = (data: KanzleiData) => {
+    saveKanzleiData(data);
+  };
 
   // --- Calculations ---
   const results = useMemo(() => {
@@ -491,6 +517,102 @@ const App: React.FC = () => {
   // V-Straf-BMGL für Anzeige (inkl. Verfallswert)
   const vstrafBmgl = VSTRAF_BEMESSUNGSGRUNDLAGEN[vstrafStufe] + vstrafVerfallswert;
 
+  // --- CSV Export/Import Handlers ---
+  const handleExportCSV = () => {
+    const state: ExportState = {
+      metadata: { ...caseMetadata, erstelltAm: new Date().toISOString().split('T')[0] },
+      caseMode,
+      isVatFree,
+      bmgl,
+      procedureType,
+      additionalParties,
+      autoGgg,
+      manualGgg,
+      isVerbandsklage,
+      services,
+      courtType,
+      strafServices,
+      strafStreitgenossen,
+      erfolgszuschlagProzent,
+      haftBmglStufe,
+      haftServices,
+      vstrafStufe,
+      vstrafVerfallswert,
+      vstrafServices,
+      vstrafStreitgenossen,
+      vstrafErfolgszuschlag,
+    };
+    const csv = exportToCSV(state);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = generateFilename(state.metadata);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csv = event.target?.result as string;
+      const result = importFromCSV(csv);
+
+      if (!result.success) {
+        alert('Import fehlgeschlagen:\n' + result.errors.join('\n'));
+        return;
+      }
+
+      if (result.warnings.length > 0) {
+        console.warn('Import-Warnungen:', result.warnings);
+      }
+
+      const s = result.state!;
+
+      // Restore all state
+      setCaseMetadata(s.metadata);
+      setCaseMode(s.caseMode);
+      setIsVatFree(s.isVatFree);
+
+      // Civil
+      setBmgl(s.bmgl);
+      setProcedureType(s.procedureType);
+      setAdditionalParties(s.additionalParties);
+      setAutoGgg(s.autoGgg);
+      setManualGgg(s.manualGgg);
+      setIsVerbandsklage(s.isVerbandsklage);
+      setServices(s.services);
+
+      // Criminal
+      setCourtType(s.courtType);
+      setStrafServices(s.strafServices);
+      setStrafStreitgenossen(s.strafStreitgenossen);
+      setErfolgszuschlagProzent(s.erfolgszuschlagProzent);
+
+      // Detention
+      setHaftBmglStufe(s.haftBmglStufe);
+      setHaftServices(s.haftServices);
+
+      // VStraf
+      setVstrafStufe(s.vstrafStufe);
+      setVstrafVerfallswert(s.vstrafVerfallswert);
+      setVstrafServices(s.vstrafServices);
+      setVstrafStreitgenossen(s.vstrafStreitgenossen);
+      setVstrafErfolgszuschlag(s.vstrafErfolgszuschlag);
+    };
+    reader.readAsText(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleDownload = () => {
     // Bestimme die korrekten Werte je nach Modus
     const effectiveBmgl = caseMode === CaseMode.VSTRAF
@@ -524,6 +646,7 @@ const App: React.FC = () => {
         vstrafStufe: vstrafStufe,
         vstrafStufeLabel: VSTRAF_STUFE_LABELS[vstrafStufe],
         vstrafVerfallswert: vstrafVerfallswert,
+        caseMetadata: caseMetadata,
       }
     );
   };
@@ -616,10 +739,30 @@ const App: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={() => setShowWiki(true)}
-              className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10"
+              className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10"
             >
               <BookOpen className="h-5 w-5" /> Wiki
             </button>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-emerald-600/80 hover:bg-emerald-600 text-white font-bold transition-all border border-emerald-500/30"
+              title="Kostennote als CSV speichern"
+            >
+              <Save className="h-5 w-5" /> Speichern
+            </button>
+            <label
+              className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/10 cursor-pointer"
+              title="CSV-Datei laden"
+            >
+              <Upload className="h-5 w-5" /> Laden
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
+            </label>
             <button
               onClick={handleDownload}
               className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg shadow-blue-600/20"
@@ -628,6 +771,13 @@ const App: React.FC = () => {
             </button>
           </div>
         </header>
+
+        {/* Falldaten-Formular */}
+        <CaseMetadataForm
+          metadata={caseMetadata}
+          onChange={setCaseMetadata}
+          onKanzleiChange={handleKanzleiChange}
+        />
 
         <div className="grid gap-8 lg:grid-cols-12">
           {/* Settings & Service Cards - Left Column (scrollable) */}
