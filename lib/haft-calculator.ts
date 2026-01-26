@@ -45,149 +45,145 @@ interface HaftCalculationParams {
 }
 
 /**
- * Berechnet Kosten für eine einzelne Haft-Leistung
+ * Berechnet Kosten für eine einzelne Haft-Leistung - gibt MEHRERE Zeilen zurück (Entlohnung, ES, ERV separat)
  */
-function calculateHaftLine(
+function calculateHaftLines(
   service: HaftService,
   bmglCents: number
-): CalculatedLine {
+): CalculatedLine[] {
   const { leistungType, durationHalbeStunden, esMultiplier, includeErv, ervRateOverride, kilometerHin, isRueckfahrt } = service;
+  const lines: CalculatedLine[] = [];
 
-  let amountCents = 0;
-  let trace = '';
+  let baseAmount = 0;
+  let baseTrace = '';
   let section = '';
 
   // === AHK § 9 Abs 1 Z 5 - Fixe Tarife ===
   if (leistungType === 'HAFT_VH_1_INSTANZ') {
-    // a) Verhandlungen 1. Instanz: € 364 erste ½h, € 182 weitere
     const tarif = AHK_HAFT_TARIFE.vh1Instanz;
     const firstHalf = tarif.firstHalf;
     const subsequent = durationHalbeStunden > 1 ? (durationHalbeStunden - 1) * tarif.subsequentHalf : 0;
-    amountCents = firstHalf + subsequent;
+    baseAmount = firstHalf + subsequent;
     section = '§ 9 Abs 1 Z 5 lit a AHK';
-    trace = `1. halbe Stunde: € ${(firstHalf / 100).toFixed(2)}`;
-    if (durationHalbeStunden > 1) {
-      trace += `\n${durationHalbeStunden - 1} weitere ½ Std × € ${(tarif.subsequentHalf / 100).toFixed(2)} = € ${(subsequent / 100).toFixed(2)}`;
-    }
-    trace += `\nGesamt: € ${(amountCents / 100).toFixed(2)}`;
+    baseTrace = `${durationHalbeStunden} × ½ Std. (€ ${(tarif.firstHalf / 100).toFixed(2)} + ${Math.max(0, durationHalbeStunden - 1)} × € ${(tarif.subsequentHalf / 100).toFixed(2)})`;
   }
   else if (leistungType === 'HAFT_VH_2_INSTANZ') {
-    // c) Verhandlungen 2. Instanz: € 564 erste ½h, € 282 weitere
     const tarif = AHK_HAFT_TARIFE.vh2Instanz;
     const firstHalf = tarif.firstHalf;
     const subsequent = durationHalbeStunden > 1 ? (durationHalbeStunden - 1) * tarif.subsequentHalf : 0;
-    amountCents = firstHalf + subsequent;
+    baseAmount = firstHalf + subsequent;
     section = '§ 9 Abs 1 Z 5 lit c AHK';
-    trace = `1. halbe Stunde: € ${(firstHalf / 100).toFixed(2)}`;
-    if (durationHalbeStunden > 1) {
-      trace += `\n${durationHalbeStunden - 1} weitere ½ Std × € ${(tarif.subsequentHalf / 100).toFixed(2)} = € ${(subsequent / 100).toFixed(2)}`;
-    }
-    trace += `\nGesamt: € ${(amountCents / 100).toFixed(2)}`;
+    baseTrace = `${durationHalbeStunden} × ½ Std. (€ ${(tarif.firstHalf / 100).toFixed(2)} + ${Math.max(0, durationHalbeStunden - 1)} × € ${(tarif.subsequentHalf / 100).toFixed(2)})`;
   }
   else if (leistungType === 'HAFT_GRUNDRECHTSBESCHWERDE') {
-    // b) Grundrechtsbeschwerde: € 786
-    amountCents = AHK_HAFT_TARIFE.grundrechtsbeschwerde;
+    baseAmount = AHK_HAFT_TARIFE.grundrechtsbeschwerde;
     section = '§ 9 Abs 1 Z 5 lit b AHK';
-    trace = `Grundrechtsbeschwerde: € ${(amountCents / 100).toFixed(2)}`;
+    baseTrace = `Pauschale Grundrechtsbeschwerde`;
   }
   else if (leistungType === 'HAFT_BESCHWERDE_SONST') {
-    // b) Sonstige Beschwerden: € 564
-    amountCents = AHK_HAFT_TARIFE.sonstigeBeschwerde;
+    baseAmount = AHK_HAFT_TARIFE.sonstigeBeschwerde;
     section = '§ 9 Abs 1 Z 5 lit b AHK';
-    trace = `Sonstige Beschwerde (Haft): € ${(amountCents / 100).toFixed(2)}`;
+    baseTrace = `Pauschale sonstige Beschwerde`;
   }
-
   // === § 10 AHK → RATG Anwendung ===
   else if (leistungType === 'HAFT_BESUCH' || leistungType === 'HAFT_ZUWARTEN') {
-    // TP 7/2 RATG - Kommissionen (RA/RAA erforderlich)
-    // getKommission(cents, halbeStunden, wegStunden, mitRA)
     const kommission = getKommission(bmglCents, durationHalbeStunden, 0, true);
-    amountCents = kommission.kommission; // nur Kommission, keine Wegzeit bei Haft-Besuchen
+    baseAmount = kommission.kommission;
     section = 'TP 7/2 RATG (§ 10 AHK)';
-    trace = `TP 7/2 Kommission: € ${(kommission.kommission / 100).toFixed(2)} (${durationHalbeStunden} × ½ Std.)`;
+    baseTrace = `${durationHalbeStunden} × ½ Std. Kommission`;
   }
   else if (leistungType === 'HAFT_ANTRAG_TP3A') {
-    // TP 3A RATG
     const tariff = getTariffBase(bmglCents, 'TP3A');
-    amountCents = tariff.base;
+    baseAmount = tariff.base;
     section = 'TP 3A RATG (§ 10 AHK)';
-    trace = `Tarif TP 3A: € ${(tariff.base / 100).toFixed(2)} (BMGL € ${(bmglCents / 100).toFixed(2)})`;
+    baseTrace = `Tarif ${tariff.label}`;
   }
   else if (leistungType === 'HAFT_BESCHWERDE_TP3B') {
-    // TP 3B RATG
     const tariff = getTariffBase(bmglCents, 'TP3B');
-    amountCents = tariff.base;
+    baseAmount = tariff.base;
     section = 'TP 3B RATG (§ 10 AHK)';
-    trace = `Tarif TP 3B: € ${(tariff.base / 100).toFixed(2)} (BMGL € ${(bmglCents / 100).toFixed(2)})`;
+    baseTrace = `Tarif ${tariff.label}`;
   }
   else if (leistungType === 'HAFT_KURZANTRAG_TP2') {
-    // TP 2 RATG
     const tariff = getTariffBase(bmglCents, 'TP2');
-    amountCents = tariff.base;
+    baseAmount = tariff.base;
     section = 'TP 2 RATG (§ 10 AHK)';
-    trace = `Tarif TP 2: € ${(tariff.base / 100).toFixed(2)} (BMGL € ${(bmglCents / 100).toFixed(2)})`;
+    baseTrace = `Tarif ${tariff.label}`;
   }
-
   // === BARAUSLAGEN ===
   else if (leistungType === 'HAFT_REISEKOSTEN') {
-    // TP 9/3: € 0,50/km
     const km = (kilometerHin ?? 0) * (isRueckfahrt ? 2 : 1);
-    amountCents = km * KILOMETERGELD;
+    baseAmount = km * KILOMETERGELD;
     section = 'TP 9/3 RATG';
-    trace = `${km} km × € 0,50 = € ${(amountCents / 100).toFixed(2)}`;
-    if (isRueckfahrt && kilometerHin) {
-      trace = `${kilometerHin} km × 2 (Hin + Rück) × € 0,50 = € ${(amountCents / 100).toFixed(2)}`;
-    }
+    baseTrace = `${km} km × € 0,50`;
   }
   else if (leistungType === 'HAFT_REISEZEIT') {
-    // TP 9/4: € 33,90 pro halbe Stunde
-    amountCents = durationHalbeStunden * REISEZEIT_PRO_HALBE_STUNDE;
+    baseAmount = durationHalbeStunden * REISEZEIT_PRO_HALBE_STUNDE;
     section = 'TP 9/4 RATG';
-    trace = `${durationHalbeStunden} × ½ Std × € 33,90 = € ${(amountCents / 100).toFixed(2)}`;
+    baseTrace = `${durationHalbeStunden} × ½ Std × € 33,90`;
   }
 
-  // === Einheitssatz ===
-  // RATG-Leistungen (Kommissionen + Schriftsätze): 0-4× (keiner bis vierfach)
-  // AHK-Schriftsätze: max 1× (keiner oder einfach)
-  const isRatgLeistung = ['HAFT_BESUCH', 'HAFT_ZUWARTEN', 'HAFT_ANTRAG_TP3A', 'HAFT_BESCHWERDE_TP3B', 'HAFT_KURZANTRAG_TP2'].includes(leistungType);
-  const isAhkSchriftsatz = ['HAFT_GRUNDRECHTSBESCHWERDE', 'HAFT_BESCHWERDE_SONST'].includes(leistungType);
-
-  if ((isRatgLeistung || isAhkSchriftsatz) && esMultiplier > 0) {
-    // ES-Rate: 60% bis € 10.170, sonst 50%
-    const esBaseRate = bmglCents <= 1017000 ? 0.6 : 0.5;
-    // AHK-Schriftsätze: max einfacher ES
-    const esMultiplierCapped = isAhkSchriftsatz ? Math.min(esMultiplier, 1) : esMultiplier;
-    const esPercent = esMultiplierCapped * esBaseRate * 100;
-
-    if (esPercent > 0) {
-      const esAmount = Math.round(amountCents * esPercent / 100);
-      const esLabel = esMultiplierCapped === 1 ? 'einfach' : esMultiplierCapped === 2 ? 'doppelt' : esMultiplierCapped === 3 ? 'dreifach' : 'vierfach';
-      trace += `\nEinheitssatz ${esLabel} (${Math.round(esPercent)}%): € ${(esAmount / 100).toFixed(2)}`;
-      amountCents += esAmount;
-      trace += `\nGesamt mit ES: € ${(amountCents / 100).toFixed(2)}`;
-    }
-  }
-
-  // === ERV-Pauschale (basierend auf ervRateOverride) ===
-  if (includeErv) {
-    // 'regular' = € 2,60, 'initial' oder undefined = € 5,00
-    const ervAmount = ervRateOverride === 'regular' ? ERV_REGULAR : ERV_INITIAL;
-    const ervLabel = ervRateOverride === 'regular' ? 'Regulär' : 'Erstmals';
-    trace += `\nERV-Pauschale (${ervLabel}): € ${(ervAmount / 100).toFixed(2)}`;
-    amountCents += ervAmount;
-  }
-
-  return {
+  // Zeile 1: Basis-Entlohnung
+  lines.push({
     date: service.date,
-    label: service.label,
+    label: `${service.label} – Entlohnung`,
     section,
     interval: '',
     vatRate: 20,
-    amountCents,
+    amountCents: baseAmount,
     bmglCents,
-    calculationTrace: trace,
+    calculationTrace: baseTrace,
     serviceId: service.id,
-  };
+  });
+
+  // === Einheitssatz (separate Zeile) ===
+  const isRatgKommission = ['HAFT_BESUCH', 'HAFT_ZUWARTEN'].includes(leistungType);
+  const isRatgSchriftsatz = ['HAFT_ANTRAG_TP3A', 'HAFT_BESCHWERDE_TP3B', 'HAFT_KURZANTRAG_TP2'].includes(leistungType);
+  const isAhkSchriftsatz = ['HAFT_GRUNDRECHTSBESCHWERDE', 'HAFT_BESCHWERDE_SONST'].includes(leistungType);
+  const isAhkTagsatzung = ['HAFT_VH_1_INSTANZ', 'HAFT_VH_2_INSTANZ'].includes(leistungType);
+
+  if ((isRatgKommission || isRatgSchriftsatz || isAhkSchriftsatz || isAhkTagsatzung) && esMultiplier > 0) {
+    const esBaseRate = bmglCents <= 1017000 ? 0.6 : 0.5;
+    const esMultiplierCapped = (isAhkSchriftsatz || isAhkTagsatzung || isRatgKommission) ? Math.min(esMultiplier, 1) : esMultiplier;
+    const esPercent = esMultiplierCapped * esBaseRate * 100;
+
+    if (esPercent > 0) {
+      const esAmount = Math.round(baseAmount * esPercent / 100);
+      const esLabel = esMultiplierCapped === 1 ? 'einfach' : esMultiplierCapped === 2 ? 'doppelt' : esMultiplierCapped === 3 ? 'dreifach' : 'vierfach';
+
+      lines.push({
+        date: service.date,
+        label: `${service.label} – ES ${esLabel} (${Math.round(esPercent)}%)`,
+        section: '§ 23 RATG',
+        interval: '',
+        vatRate: 20,
+        amountCents: esAmount,
+        bmglCents,
+        calculationTrace: `${Math.round(esPercent)}% von € ${(baseAmount / 100).toFixed(2)}`,
+        serviceId: service.id,
+      });
+    }
+  }
+
+  // === ERV-Pauschale (separate Zeile) ===
+  if (includeErv) {
+    const ervAmount = ervRateOverride === 'regular' ? ERV_REGULAR : ERV_INITIAL;
+    const ervLabel = ervRateOverride === 'regular' ? 'Regulär' : 'Erstmals';
+
+    lines.push({
+      date: service.date,
+      label: `${service.label} – ERV-Beitrag (${ervLabel})`,
+      section: '§ 23a RATG',
+      interval: '',
+      vatRate: 20,
+      amountCents: ervAmount,
+      bmglCents,
+      calculationTrace: `ERV-Pauschale ${ervLabel}`,
+      serviceId: service.id,
+    });
+  }
+
+  return lines;
 }
 
 /**
@@ -200,8 +196,8 @@ export function calculateHaftCosts(params: HaftCalculationParams): TotalResult {
   const lines: CalculatedLine[] = [];
 
   for (const service of services) {
-    const line = calculateHaftLine(service, bmglCents);
-    lines.push(line);
+    const serviceLines = calculateHaftLines(service, bmglCents);
+    lines.push(...serviceLines);
   }
 
   // Summen

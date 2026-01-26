@@ -1,17 +1,19 @@
 import React from 'react';
-import { ExternalLink, Gavel, Shield, FileText } from 'lucide-react';
-import { RIS_LINKS, AHK_SECTIONS } from '../../lib/wiki-data';
+import { ExternalLink, Gavel, Shield, FileText, Lock, Building2 } from 'lucide-react';
+import { RIS_LINKS, AHK_SECTIONS, AHK_HAFT_DETAILS, AHK_VSTRAF_DETAILS } from '../../lib/wiki-data';
 
 export const AhkTab: React.FC = () => {
   const iconMap: Record<string, React.ReactNode> = {
     straf: <Gavel className="h-5 w-5" />,
-    vstraf: <Shield className="h-5 w-5" />,
+    haft: <Lock className="h-5 w-5" />,
+    vstraf: <Building2 className="h-5 w-5" />,
     zivil: <FileText className="h-5 w-5" />
   };
 
   const colorMap: Record<string, { bg: string; border: string; text: string }> = {
     straf: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400' },
-    vstraf: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400' },
+    haft: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400' },
+    vstraf: { bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-400' },
     zivil: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400' }
   };
 
@@ -87,6 +89,96 @@ export const AhkTab: React.FC = () => {
             </div>
           );
         })}
+      </div>
+
+      {/* Haftverfahren Details */}
+      <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-6">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <Lock className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-bold text-white">{AHK_HAFT_DETAILS.title}</h3>
+            <p className="text-sm text-slate-400">{AHK_HAFT_DETAILS.description}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {AHK_HAFT_DETAILS.sections.map((section, i) => (
+            <div key={i} className="bg-black/20 rounded-xl p-4">
+              <div className="text-xs font-bold text-amber-300 mb-2">{section.name}</div>
+              <div className="space-y-1">
+                {section.tarife.map((t, j) => (
+                  <div key={j} className="flex justify-between text-sm">
+                    <span className="text-slate-400">{t.name}</span>
+                    <span className="font-mono font-bold text-white">{t.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <div className="text-xs font-bold text-blue-300 mb-2">RATG-Leistungen (§ 10 AHK)</div>
+          <p className="text-xs text-blue-200/80 mb-2">{AHK_HAFT_DETAILS.ratgHinweis}</p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {AHK_HAFT_DETAILS.bmglTabelle.map((row, i) => (
+              <div key={i} className="flex justify-between">
+                <span className="text-slate-400">{row.gericht}</span>
+                <span className="font-mono text-slate-300">{row.bmgl}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Verwaltungsstrafsachen Details */}
+      <div className="rounded-2xl bg-orange-500/10 border border-orange-500/20 p-6">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-bold text-white">{AHK_VSTRAF_DETAILS.title}</h3>
+            <p className="text-sm text-slate-400">{AHK_VSTRAF_DETAILS.description}</p>
+          </div>
+        </div>
+
+        {/* Abs 1 - Stufen */}
+        <div className="bg-black/20 rounded-xl p-4 mb-4">
+          <div className="text-xs font-bold text-orange-300 mb-3">{AHK_VSTRAF_DETAILS.abs1.title}</div>
+          <div className="space-y-2">
+            {AHK_VSTRAF_DETAILS.abs1.stufen.map((stufe, i) => (
+              <div key={i} className="grid grid-cols-4 gap-2 text-xs">
+                <span className="font-mono font-bold text-orange-400">{stufe.z}</span>
+                <span className="text-slate-400">{stufe.strafe}</span>
+                <span className="font-mono text-white">{stufe.bmgl}</span>
+                <span className="text-slate-500">≙ {stufe.entspricht}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Abs 2-4 */}
+        <div className="space-y-3">
+          <div className="p-3 rounded-lg bg-white/5">
+            <div className="text-xs font-bold text-slate-300 mb-1">{AHK_VSTRAF_DETAILS.abs2.title}</div>
+            <p className="text-xs text-slate-400">{AHK_VSTRAF_DETAILS.abs2.text}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-white/5">
+            <div className="text-xs font-bold text-slate-300 mb-1">{AHK_VSTRAF_DETAILS.abs3.title}</div>
+            <p className="text-xs text-slate-400">{AHK_VSTRAF_DETAILS.abs3.text}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-white/5">
+            <div className="text-xs font-bold text-slate-300 mb-1">{AHK_VSTRAF_DETAILS.abs4.title}</div>
+            <p className="text-xs text-slate-400">{AHK_VSTRAF_DETAILS.abs4.text}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 text-xs text-orange-300 italic">
+          {AHK_VSTRAF_DETAILS.tarife}
+        </div>
       </div>
 
       {/* StPO Link */}

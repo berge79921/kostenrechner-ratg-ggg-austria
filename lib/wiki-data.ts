@@ -195,15 +195,31 @@ export const AHK_SECTIONS: AhkSection[] = [
     ]
   },
   {
-    id: 'vstraf',
-    title: 'Verwaltungsstrafrecht',
-    paragraph: '§ 13 AHK',
-    description: 'Verwaltungsstrafverfahren und -beschwerden',
+    id: 'haft',
+    title: 'Haftverfahren',
+    paragraph: '§ 9 Abs 1 Z 5 + § 10 AHK',
+    description: 'Fixsätze für Haftverfahren + RATG für sonstige Leistungen',
     items: [
-      { name: 'Einspruch / Stellungnahme', value: '€ 300 – € 1.000' },
-      { name: 'Verhandlung VwBehörde', value: '€ 400 – € 1.500' },
-      { name: 'Beschwerde an BVwG/LVwG', value: '€ 600 – € 2.000' },
-      { name: 'Verhandlung BVwG/LVwG', value: '€ 600 – € 2.000' }
+      { name: 'Haftverhandlung 1. Instanz', value: '€ 364 / € 182 pro ½h' },
+      { name: 'Haftverhandlung 2. Instanz', value: '€ 564 / € 282 pro ½h' },
+      { name: 'Grundrechtsbeschwerde', value: '€ 786 (pauschal)' },
+      { name: 'Sonstige Haftbeschwerde', value: '€ 564 (pauschal)' },
+      { name: 'Besuch Haftanstalt (TP 7/2)', value: 'nach RATG-BMGL' },
+      { name: 'Enthaftungsantrag (TP 3A)', value: 'nach RATG-BMGL' }
+    ]
+  },
+  {
+    id: 'vstraf',
+    title: 'Verwaltungsstrafsachen',
+    paragraph: '§ 13 AHK',
+    description: 'BMGL nach Strafdrohung, Tarife aus § 9 sinngemäß',
+    items: [
+      { name: 'Z 1: bis € 730 Strafe', value: 'BMGL € 7.800 (≙ BG)' },
+      { name: 'Z 2: bis € 2.180 Strafe', value: 'BMGL € 18.000 (≙ ER)' },
+      { name: 'Z 3: € 2.180 – € 4.360', value: 'BMGL € 27.600 (≙ Schöffen)' },
+      { name: 'Z 4: über € 4.360 / + Haft', value: 'BMGL € 33.200 (≙ Geschw.)' },
+      { name: 'Z 5: Finanzstrafverfahren', value: 'BMGL € 27.600' },
+      { name: 'Z 6: Disziplinarverfahren', value: 'nach Schwere (Z 1-3)' }
     ]
   },
   {
@@ -219,6 +235,72 @@ export const AHK_SECTIONS: AhkSection[] = [
     ]
   }
 ];
+
+// Detaillierte AHK-Haftverfahren-Tarife (§ 9 Abs 1 Z 5)
+export const AHK_HAFT_DETAILS = {
+  title: 'Haftverfahren (§ 9 Abs 1 Z 5 AHK)',
+  description: 'Fixe Sätze unabhängig vom Ausgangsverfahren',
+  sections: [
+    {
+      name: 'a) Verhandlungen 1. Instanz',
+      tarife: [
+        { name: 'Erste ½ Stunde', value: '€ 364,00' },
+        { name: 'Jede weitere ½ Stunde', value: '€ 182,00' },
+      ],
+    },
+    {
+      name: 'b) Schriftsätze',
+      tarife: [
+        { name: 'Grundrechtsbeschwerde', value: '€ 786,00' },
+        { name: 'Sonstige Beschwerden', value: '€ 564,00' },
+      ],
+    },
+    {
+      name: 'c) Verhandlungen 2. Instanz',
+      tarife: [
+        { name: 'Erste ½ Stunde', value: '€ 564,00' },
+        { name: 'Jede weitere ½ Stunde', value: '€ 282,00' },
+      ],
+    },
+  ],
+  ratgHinweis: 'Für sonstige Leistungen (Besuche, Anträge) gilt § 10 AHK → RATG-Tarife mit BMGL nach Ausgangsverfahren.',
+  bmglTabelle: [
+    { gericht: 'Bezirksgericht', bmgl: '€ 7.800' },
+    { gericht: 'Einzelrichter Gerichtshof', bmgl: '€ 18.000' },
+    { gericht: 'Schöffengericht', bmgl: '€ 27.600' },
+    { gericht: 'Geschworenengericht', bmgl: '€ 33.200' },
+  ],
+};
+
+// Detaillierte V-Straf-Tarife (§ 13 AHK)
+export const AHK_VSTRAF_DETAILS = {
+  title: 'Verwaltungsstrafsachen (§ 13 AHK)',
+  description: 'Bemessungsgrundlage richtet sich nach der angedrohten Geldstrafe',
+  abs1: {
+    title: '§ 13 Abs 1 – BMGL nach Strafdrohung',
+    stufen: [
+      { z: 'Z 1', strafe: 'bis € 730', bmgl: '€ 7.800', entspricht: 'BG' },
+      { z: 'Z 2', strafe: 'bis € 2.180', bmgl: '€ 18.000', entspricht: 'Einzelrichter GH' },
+      { z: 'Z 3', strafe: '€ 2.180 – € 4.360', bmgl: '€ 27.600', entspricht: 'Schöffengericht' },
+      { z: 'Z 4', strafe: 'über € 4.360 oder + Ersatzfreiheitsstrafe', bmgl: '€ 33.200', entspricht: 'Geschworenengericht' },
+      { z: 'Z 5', strafe: 'Finanzstrafverfahren', bmgl: '€ 27.600', entspricht: 'Schöffengericht' },
+      { z: 'Z 6', strafe: 'Disziplinarverfahren', bmgl: 'nach Schwere', entspricht: 'Z 1–3' },
+    ],
+  },
+  abs2: {
+    title: '§ 13 Abs 2 – Kumulation',
+    text: 'Bei mehreren Verwaltungsübertretungen in einem Verfahren: höchste angedrohte Strafe maßgebend.',
+  },
+  abs3: {
+    title: '§ 13 Abs 3 – Verfallswert',
+    text: 'Ist der Verfall eines Gegenstandes angedroht, dessen Wert € 730 übersteigt, erhöht sich die BMGL um diesen Wert.',
+  },
+  abs4: {
+    title: '§ 13 Abs 4 – Nur Strafhöhe',
+    text: 'Rechtsmittel nur wegen der Höhe der Geldstrafe: reduzierte Tarife (entsprechend Berufung nur Strafhöhe).',
+  },
+  tarife: 'Es gelten die Tarife des § 9 AHK sinngemäß (Verhandlungen, Schriftsätze).',
+};
 
 // RATG Tariftabelle (Auszug, Stand Mai 2023)
 export const RATG_TARIFE = [

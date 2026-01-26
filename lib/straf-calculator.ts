@@ -18,7 +18,7 @@ import {
   isTagsatzung,
   TagsatzungTarif,
 } from './ahk';
-import { getTariffBase, getESRate } from './tariffs';
+import { getTariffBase, getESRate, getKommission } from './tariffs';
 import { StrafService, CalculatedLine, TotalResult } from '../types';
 
 export interface StrafCalculationParams {
@@ -359,45 +359,55 @@ function calculateRATGStrafLeistung(
   }
 
   // Hole RATG-Tarif
-  const tariff = getTariffBase(bmglCents, tpType === 'TP7' ? 'TP3A' : tpType);
-  let baseAmount = tariff.base;
+  let baseAmount = 0;
+  let tariffLabel = '';
+  let traceText = '';
 
-  // TP 7/2 = halber Satz von TP 3A
+  // TP 7/2: Kommission (Zeitgebühr pro halbe Stunde)
   if (leistungType === 'STRAF_RATG_TP7_2' || leistungType === 'STRAF_ZUWARTEN') {
-    baseAmount = Math.round(baseAmount / 2);
-  }
-
-  // Zuwarten: pro halbe Stunde (nach erster)
-  if (leistungType === 'STRAF_ZUWARTEN' && durationHalbeStunden > 1) {
-    baseAmount = baseAmount * (durationHalbeStunden - 1);
+    const halbeStunden = Math.max(1, durationHalbeStunden || 1);
+    const kommResult = getKommission(bmglCents, halbeStunden, 0, true);
+    baseAmount = kommResult.kommission;
+    tariffLabel = `BMGL € ${(bmglCents / 100).toLocaleString('de-AT')}`;
+    traceText = `${tpLabel} (${halbeStunden} × ½ Std.) bei ${tariffLabel}: ${(baseAmount / 100).toFixed(2)} €`;
+  } else {
+    // TP2, TP3A, TP3B: Schriftsätze
+    const tariff = getTariffBase(bmglCents, tpType as 'TP2' | 'TP3A' | 'TP3B');
+    baseAmount = tariff.base;
+    tariffLabel = tariff.label;
+    traceText = `${tpLabel} bei ${(bmglCents / 100).toFixed(2)} €: ${(baseAmount / 100).toFixed(2)} €`;
   }
 
   lines.push({
     date: service.date,
     label: service.label || label,
     section: `RATG ${tpLabel} (§ 10 AHK)`,
-    interval: tariff.label,
+    interval: tariffLabel,
     vatRate,
     amountCents: baseAmount,
     bmglCents,
-    calculationTrace: `${tpLabel} bei ${(bmglCents / 100).toFixed(2)} €: ${(baseAmount / 100).toFixed(2)} €`,
+    calculationTrace: traceText,
     serviceId: service.id,
   });
   basisBetrag += baseAmount;
 
   // Einheitssatz
-  if (esMultiplier > 0) {
-    const effectiveESRate = esRate * esMultiplier;
+  // TP 7/2 und Zuwarten: max einfacher ES
+  const isZeitgebuehr = leistungType === 'STRAF_RATG_TP7_2' || leistungType === 'STRAF_ZUWARTEN';
+  const cappedEsMultiplier = isZeitgebuehr ? Math.min(esMultiplier, 1) : esMultiplier;
+
+  if (cappedEsMultiplier > 0) {
+    const effectiveESRate = esRate * cappedEsMultiplier;
     const esAmount = Math.round(baseAmount * effectiveESRate);
     lines.push({
       date: service.date,
       label: `Einheitssatz ${(effectiveESRate * 100).toFixed(0)}%`,
       section: '§ 23 RATG',
-      interval: tariff.label,
+      interval: tariffLabel,
       vatRate,
       amountCents: esAmount,
       bmglCents,
-      calculationTrace: `${esMultiplier}× ES auf ${(baseAmount / 100).toFixed(2)} €`,
+      calculationTrace: `${cappedEsMultiplier}× ES auf ${(baseAmount / 100).toFixed(2)} €`,
       serviceId: service.id,
     });
     basisBetrag += esAmount;

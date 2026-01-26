@@ -8,6 +8,8 @@ import {
   Info,
   X,
   ChevronDown,
+  ChevronUp,
+  ArrowUpDown,
   Gavel,
   Euro,
   FileText,
@@ -52,9 +54,12 @@ import {
 import { calculateStrafCosts } from './lib/straf-calculator';
 import { getStrafCatalog, getGroupedStrafCatalog, STRAF_CATEGORY_LABELS, getDefaultStrafService } from './lib/straf-catalog';
 // Haft-Imports
-import { HaftService, HaftLeistungType, HaftBmglStufe } from './types';
+import { HaftService, HaftLeistungType, HaftBmglStufe, VStrafService, VStrafLeistungType, VStrafStufe } from './types';
 import { calculateHaftCosts, HAFT_BEMESSUNGSGRUNDLAGEN, HAFT_BMGL_LABELS } from './lib/haft-calculator';
 import { HAFT_CATALOG, HAFT_CATEGORY_LABELS, HAFT_LEISTUNG_LABELS, getGroupedHaftCatalog, getDefaultHaftService, isHaftTagsatzung, hasHaftKilometer } from './lib/haft-catalog';
+// V-Straf-Imports
+import { calculateVStrafCosts } from './lib/vstraf-calculator';
+import { VSTRAF_BEMESSUNGSGRUNDLAGEN, VSTRAF_STUFE_LABELS, VSTRAF_LEISTUNG_LABELS, VSTRAF_CATEGORY_LABELS, getGroupedVStrafCatalog, getDefaultVStrafService, isVStrafTagsatzung, VStrafCatalogCategory, getVStrafCourtType, VStrafCourtType } from './lib/vstraf-catalog';
 import { ValuationModal } from './components/ValuationModal';
 import { ProWikiModal } from './components/ProWikiModal';
 import { BookOpen, Lock } from 'lucide-react';
@@ -151,8 +156,28 @@ const App: React.FC = () => {
   const [haftSearchTerm, setHaftSearchTerm] = useState("");
   const [openHaftServiceDropdown, setOpenHaftServiceDropdown] = useState<string | null>(null);
 
+  // --- V-Straf-State ---
+  const [vstrafStufe, setVstrafStufe] = useState<VStrafStufe>('Z2');
+  const [vstrafVerfallswert, setVstrafVerfallswert] = useState<number>(0);
+  const [vstrafServices, setVstrafServices] = useState<VStrafService[]>([]);
+  const [vstrafStreitgenossen, setVstrafStreitgenossen] = useState<number>(0);
+  const [vstrafErfolgszuschlag, setVstrafErfolgszuschlag] = useState<number>(0);
+  const [showVstrafCatalog, setShowVstrafCatalog] = useState(false);
+  const [vstrafSearchTerm, setVstrafSearchTerm] = useState("");
+  const [openVstrafServiceDropdown, setOpenVstrafServiceDropdown] = useState<string | null>(null);
+
   // --- Calculations ---
   const results = useMemo(() => {
+    if (caseMode === CaseMode.VSTRAF) {
+      return calculateVStrafCosts({
+        stufe: vstrafStufe,
+        verfallswert: vstrafVerfallswert,
+        services: vstrafServices,
+        streitgenossen: vstrafStreitgenossen,
+        erfolgszuschlagProzent: vstrafErfolgszuschlag,
+        isVatFree,
+      });
+    }
     if (caseMode === CaseMode.DETENTION) {
       return calculateHaftCosts({
         bmglStufe: haftBmglStufe,
@@ -178,7 +203,7 @@ const App: React.FC = () => {
       autoGgg,
       isVerbandsklage
     );
-  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices]);
+  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag]);
 
   // --- Tariff Info ---
   const tariffInfo = useMemo(() => {
@@ -245,6 +270,29 @@ const App: React.FC = () => {
     setServices(services.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
+  const moveServiceUp = (id: string) => {
+    const index = services.findIndex(s => s.id === id);
+    if (index > 0) {
+      const newServices = [...services];
+      [newServices[index - 1], newServices[index]] = [newServices[index], newServices[index - 1]];
+      setServices(newServices);
+    }
+  };
+
+  const moveServiceDown = (id: string) => {
+    const index = services.findIndex(s => s.id === id);
+    if (index < services.length - 1) {
+      const newServices = [...services];
+      [newServices[index], newServices[index + 1]] = [newServices[index + 1], newServices[index]];
+      setServices(newServices);
+    }
+  };
+
+  const sortServicesByDate = () => {
+    const sorted = [...services].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setServices(sorted);
+  };
+
   const filteredCatalog = SERVICE_CATALOG.filter(c =>
     c.full.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.short.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -279,6 +327,29 @@ const App: React.FC = () => {
 
   const updateStrafService = (id: string, updates: Partial<StrafService>) => {
     setStrafServices(strafServices.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+
+  const moveStrafServiceUp = (id: string) => {
+    const index = strafServices.findIndex(s => s.id === id);
+    if (index > 0) {
+      const newServices = [...strafServices];
+      [newServices[index - 1], newServices[index]] = [newServices[index], newServices[index - 1]];
+      setStrafServices(newServices);
+    }
+  };
+
+  const moveStrafServiceDown = (id: string) => {
+    const index = strafServices.findIndex(s => s.id === id);
+    if (index < strafServices.length - 1) {
+      const newServices = [...strafServices];
+      [newServices[index], newServices[index + 1]] = [newServices[index + 1], newServices[index]];
+      setStrafServices(newServices);
+    }
+  };
+
+  const sortStrafServicesByDate = () => {
+    const sorted = [...strafServices].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setStrafServices(sorted);
   };
 
   const strafCatalog = useMemo(() => getStrafCatalog(courtType), [courtType]);
@@ -321,6 +392,29 @@ const App: React.FC = () => {
     setHaftServices(haftServices.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
+  const moveHaftServiceUp = (id: string) => {
+    const index = haftServices.findIndex(s => s.id === id);
+    if (index > 0) {
+      const newServices = [...haftServices];
+      [newServices[index - 1], newServices[index]] = [newServices[index], newServices[index - 1]];
+      setHaftServices(newServices);
+    }
+  };
+
+  const moveHaftServiceDown = (id: string) => {
+    const index = haftServices.findIndex(s => s.id === id);
+    if (index < haftServices.length - 1) {
+      const newServices = [...haftServices];
+      [newServices[index], newServices[index + 1]] = [newServices[index + 1], newServices[index]];
+      setHaftServices(newServices);
+    }
+  };
+
+  const sortHaftServicesByDate = () => {
+    const sorted = [...haftServices].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setHaftServices(sorted);
+  };
+
   const groupedHaftCatalog = useMemo(() => getGroupedHaftCatalog(), []);
 
   const filteredHaftCatalog = HAFT_CATALOG.filter(c =>
@@ -331,13 +425,81 @@ const App: React.FC = () => {
   // Haft-BMGL für Anzeige
   const haftBmgl = HAFT_BEMESSUNGSGRUNDLAGEN[haftBmglStufe];
 
+  // --- V-Straf-Handlers ---
+  const addVstrafService = (leistungType: VStrafLeistungType, label?: string) => {
+    const defaults = getDefaultVStrafService(leistungType);
+    const newService: VStrafService = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString().split('T')[0],
+      label: label || VSTRAF_LEISTUNG_LABELS[leistungType],
+      leistungType,
+      durationHalbeStunden: defaults.durationHalbeStunden,
+      waitingHalbeStunden: defaults.waitingHalbeStunden,
+      esMultiplier: defaults.esMultiplier,
+      includeErv: defaults.includeErv,
+      isNurStrafhoehe: leistungType.includes('_STRAFE'),
+    };
+    setVstrafServices([...vstrafServices, newService]);
+    setShowVstrafCatalog(false);
+    setVstrafSearchTerm("");
+  };
+
+  const removeVstrafService = (id: string) => {
+    setVstrafServices(vstrafServices.filter(s => s.id !== id));
+  };
+
+  const updateVstrafService = (id: string, updates: Partial<VStrafService>) => {
+    setVstrafServices(vstrafServices.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+
+  const moveVstrafServiceUp = (id: string) => {
+    const index = vstrafServices.findIndex(s => s.id === id);
+    if (index > 0) {
+      const newServices = [...vstrafServices];
+      [newServices[index - 1], newServices[index]] = [newServices[index], newServices[index - 1]];
+      setVstrafServices(newServices);
+    }
+  };
+
+  const moveVstrafServiceDown = (id: string) => {
+    const index = vstrafServices.findIndex(s => s.id === id);
+    if (index < vstrafServices.length - 1) {
+      const newServices = [...vstrafServices];
+      [newServices[index], newServices[index + 1]] = [newServices[index + 1], newServices[index]];
+      setVstrafServices(newServices);
+    }
+  };
+
+  const sortVstrafServicesByDate = () => {
+    const sorted = [...vstrafServices].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setVstrafServices(sorted);
+  };
+
+  const groupedVstrafCatalog = useMemo(() => getGroupedVStrafCatalog(), []);
+
+  const vstrafCatalog = useMemo(() => {
+    const all: { id: string; leistungType: VStrafLeistungType; short: string; full: string; category: VStrafCatalogCategory }[] = [];
+    (Object.values(groupedVstrafCatalog) as { id: string; leistungType: VStrafLeistungType; short: string; full: string; category: VStrafCatalogCategory }[][]).forEach(entries => all.push(...entries));
+    return all;
+  }, [groupedVstrafCatalog]);
+
+  const filteredVstrafCatalog = vstrafCatalog.filter(c =>
+    c.full.toLowerCase().includes(vstrafSearchTerm.toLowerCase()) ||
+    c.short.toLowerCase().includes(vstrafSearchTerm.toLowerCase())
+  );
+
+  // V-Straf-BMGL für Anzeige (inkl. Verfallswert)
+  const vstrafBmgl = VSTRAF_BEMESSUNGSGRUNDLAGEN[vstrafStufe] + vstrafVerfallswert;
+
   const handleDownload = () => {
     // Bestimme die korrekten Werte je nach Modus
-    const effectiveBmgl = caseMode === CaseMode.DETENTION
-      ? haftBmgl / 100  // haftBmgl ist in Cents
-      : caseMode === CaseMode.CRIMINAL
-        ? strafBmgl / 100  // strafBmgl ist in Cents
-        : bmgl;
+    const effectiveBmgl = caseMode === CaseMode.VSTRAF
+      ? vstrafBmgl / 100  // vstrafBmgl ist in Cents
+      : caseMode === CaseMode.DETENTION
+        ? haftBmgl / 100  // haftBmgl ist in Cents
+        : caseMode === CaseMode.CRIMINAL
+          ? strafBmgl / 100  // strafBmgl ist in Cents
+          : bmgl;
 
     const haftBmglLabels: Record<string, string> = {
       'BG': 'Bezirksgericht',
@@ -359,6 +521,9 @@ const App: React.FC = () => {
         haftBmglLabel: haftBmglLabels[haftBmglStufe],
         courtType: courtType,
         courtTypeLabel: COURT_TYPE_LABELS[courtType],
+        vstrafStufe: vstrafStufe,
+        vstrafStufeLabel: VSTRAF_STUFE_LABELS[vstrafStufe],
+        vstrafVerfallswert: vstrafVerfallswert,
       }
     );
   };
@@ -435,6 +600,17 @@ const App: React.FC = () => {
                 <Lock className="h-4 w-4" />
                 Haftrecht
               </button>
+              <button
+                onClick={() => setCaseMode(CaseMode.VSTRAF)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  caseMode === CaseMode.VSTRAF
+                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Building2 className="h-4 w-4" />
+                V-Straf
+              </button>
             </div>
           </div>
           <div className="flex gap-3">
@@ -456,7 +632,7 @@ const App: React.FC = () => {
         <div className="grid gap-8 lg:grid-cols-12">
           {/* Settings & Service Cards - Left Column (scrollable) */}
           <div className="lg:col-span-5 space-y-6">
-            <GlassCard variant="light" title={caseMode === CaseMode.CRIMINAL ? "Strafverfahren" : caseMode === CaseMode.DETENTION ? "Haftverfahren" : "Zivilverfahren"} className={`ring-1 ${caseMode === CaseMode.CRIMINAL ? 'ring-red-500/30' : caseMode === CaseMode.DETENTION ? 'ring-amber-500/30' : 'ring-white/20'}`}>
+            <GlassCard variant="light" title={caseMode === CaseMode.CRIMINAL ? "Strafverfahren" : caseMode === CaseMode.DETENTION ? "Haftverfahren" : caseMode === CaseMode.VSTRAF ? "Verwaltungsstrafsachen" : "Zivilverfahren"} className={`ring-1 ${caseMode === CaseMode.CRIMINAL ? 'ring-red-500/30' : caseMode === CaseMode.DETENTION ? 'ring-amber-500/30' : caseMode === CaseMode.VSTRAF ? 'ring-orange-500/30' : 'ring-white/20'}`}>
               <div className="space-y-6">
 
                 {/* === STRAF-MODUS === */}
@@ -687,6 +863,147 @@ const App: React.FC = () => {
                   </>
                 )}
 
+                {/* === V-STRAF-MODUS === */}
+                {caseMode === CaseMode.VSTRAF && (
+                  <>
+                    {/* Strafdrohung (§ 13 Abs 1 AHK) */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-widest block mb-2 flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5" /> Strafdrohung (§ 13 Abs 1 AHK)
+                      </label>
+                      <select
+                        value={vstrafStufe}
+                        onChange={(e) => setVstrafStufe(e.target.value as VStrafStufe)}
+                        className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-4 font-bold text-slate-900 appearance-none outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all cursor-pointer shadow-sm"
+                      >
+                        <optgroup label="Verwaltungsübertretungen">
+                          <option value="Z1">bis € 730 (Z 1)</option>
+                          <option value="Z2">bis € 2.180 (Z 2)</option>
+                          <option value="Z3">€ 2.180 – € 4.360 (Z 3)</option>
+                          <option value="Z4">über € 4.360 / + Haft (Z 4)</option>
+                        </optgroup>
+                        <optgroup label="Sonderverfahren">
+                          <option value="Z5">Finanzstrafverfahren (Z 5)</option>
+                        </optgroup>
+                        <optgroup label="Disziplinarverfahren (Z 6)">
+                          <option value="Z6A">Leicht</option>
+                          <option value="Z6B">Mittel</option>
+                          <option value="Z6C">Schwer</option>
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    {/* Verfallswert (§ 13 Abs 3) */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-widest block mb-2 flex items-center gap-2">
+                        <Euro className="h-3.5 w-3.5" /> Verfallswert (§ 13 Abs 3)
+                      </label>
+                      <div className="relative">
+                        <Euro className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="number"
+                          value={vstrafVerfallswert / 100}
+                          onChange={(e) => setVstrafVerfallswert(Math.round(parseFloat(e.target.value || '0') * 100))}
+                          className="w-full bg-white border border-slate-300 rounded-2xl pl-10 pr-4 py-3 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
+                          min={0}
+                          placeholder="0"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 mt-1 block">Erhöht die Bemessungsgrundlage um diesen Betrag</span>
+                    </div>
+
+                    {/* Streitgenossen */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-widest block mb-2 flex items-center gap-2">
+                        <Users className="h-3.5 w-3.5" /> Streitgenossen (§ 10 Abs 3)
+                      </label>
+                      <input
+                        type="number"
+                        value={vstrafStreitgenossen}
+                        onChange={(e) => setVstrafStreitgenossen(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
+                        min={0}
+                      />
+                      <span className="text-[10px] text-slate-500 mt-1 block">+30% pro weiterer Person</span>
+                    </div>
+
+                    {/* Erfolgszuschlag */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-widest block mb-2 flex items-center gap-2">
+                        <Award className="h-3.5 w-3.5" /> Erfolgszuschlag (%)
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min={0}
+                          max={50}
+                          step={5}
+                          value={vstrafErfolgszuschlag}
+                          onChange={(e) => setVstrafErfolgszuschlag(parseInt(e.target.value))}
+                          className="flex-1 h-2 rounded-full appearance-none cursor-pointer accent-orange-500"
+                          style={{ background: `linear-gradient(to right, #f97316 ${vstrafErfolgszuschlag * 2}%, #e2e8f0 ${vstrafErfolgszuschlag * 2}%)` }}
+                        />
+                        <span className="w-16 text-right font-mono font-black text-orange-600 text-lg">{vstrafErfolgszuschlag}%</span>
+                      </div>
+                    </div>
+
+                    {/* UST-frei Toggle */}
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-200/50 flex items-center justify-center">
+                          <span className="text-lg font-black text-slate-600">%</span>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-800">UST-Befreiung</span>
+                          <p className="text-[10px] text-slate-500">Kleinunternehmer / Auslandsverrechnung</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setIsVatFree(!isVatFree)}
+                        className={`relative w-14 h-8 rounded-full transition-all duration-300 ${isVatFree ? 'bg-orange-500' : 'bg-slate-200'}`}
+                      >
+                        <div className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${isVatFree ? 'translate-x-6' : ''}`}></div>
+                      </button>
+                    </div>
+
+                    {/* V-Straf-Tarifübersicht */}
+                    <div className="space-y-4">
+                      {(() => {
+                        const courtType = getVStrafCourtType(vstrafStufe);
+                        const tp72Result = getKommission(vstrafBmgl, 1, 0, true);
+                        const tp3aResult = getTariffBase(vstrafBmgl, 'TP3A');
+                        const tp3bResult = getTariffBase(vstrafBmgl, 'TP3B');
+
+                        return (
+                          <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200/50 shadow-sm">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-800">§ 13 AHK Tarife</span>
+                              <span className="text-[10px] font-mono font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded">BMGL € {(vstrafBmgl / 100).toLocaleString('de-AT')}</span>
+                            </div>
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-slate-700">Verhandlung (TP 7/2)</span>
+                                <span className="font-mono font-bold text-orange-900">€ {(tp72Result.kommission / 100).toFixed(2).replace('.', ',')} / ½h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-700">Anträge (TP 3A)</span>
+                                <span className="font-mono font-bold text-orange-900">€ {(tp3aResult.base / 100).toFixed(2).replace('.', ',')}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-700">Beschwerden (TP 3B)</span>
+                                <span className="font-mono font-bold text-orange-900">€ {(tp3bResult.base / 100).toFixed(2).replace('.', ',')}</span>
+                              </div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-orange-200/50 text-[10px] text-orange-700 italic">
+                              Stufe: {VSTRAF_STUFE_LABELS[vstrafStufe]}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+
                 {caseMode === CaseMode.CIVIL && (
                   <>
                     {/* === ZIVIL-MODUS (BESTEHEND) === */}
@@ -829,21 +1146,66 @@ const App: React.FC = () => {
               </div>
             </GlassCard>
 
+            {/* Service Cards Header - Zivil */}
+            {caseMode === CaseMode.CIVIL && services.length > 0 && (
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {services.length} Leistung{services.length !== 1 ? 'en' : ''}
+                </span>
+                {services.length > 1 && (
+                  <button
+                    onClick={sortServicesByDate}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 transition-all"
+                    title="Nach Datum sortieren (neueste zuerst)"
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    Nach Datum
+                  </button>
+                )}
+              </div>
+            )}
             {/* Service Cards - Zivil (nur wenn nicht Straf-Modus) */}
             {caseMode === CaseMode.CIVIL && (
             <div className="space-y-3">
-              {services.map((s) => (
+              {services.map((s, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === services.length - 1;
+                return (
                 <GlassCard key={s.id} className="!p-4 relative group/item" variant="light">
-                  <button
-                    onClick={() => removeService(s.id)}
-                    className="absolute top-3 right-3 text-slate-300 hover:text-red-500 transition-colors bg-white/40 p-1 rounded-lg border border-white/40 z-20"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Action Buttons: Move + Delete */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1 z-20">
+                    {services.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => moveServiceUp(s.id)}
+                          disabled={isFirst}
+                          className={`p-1 rounded-lg border transition-colors ${isFirst ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 bg-white/40 border-white/40 hover:border-blue-300'}`}
+                          title="Nach oben"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveServiceDown(s.id)}
+                          disabled={isLast}
+                          className={`p-1 rounded-lg border transition-colors ${isLast ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 bg-white/40 border-white/40 hover:border-blue-300'}`}
+                          title="Nach unten"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => removeService(s.id)}
+                      className="text-slate-300 hover:text-red-500 transition-colors bg-white/40 p-1 rounded-lg border border-white/40"
+                      title="Löschen"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
 
                   <div className="space-y-3 relative z-10">
                     {/* Header: Date + Type Badge */}
-                    <div className="flex items-center gap-2 pr-8">
+                    <div className="flex items-center gap-2 pr-24">
                       <input
                         type="date"
                         value={s.date}
@@ -1514,7 +1876,8 @@ const App: React.FC = () => {
                     })()}
                   </div>
                 </GlassCard>
-              ))}
+              );
+              })}
 
               {/* Add Service Button - Compact */}
               <div className="relative">
@@ -1660,10 +2023,30 @@ const App: React.FC = () => {
             </div>
             )}
 
+            {/* Straf-Service Cards Header */}
+            {caseMode === CaseMode.CRIMINAL && strafServices.length > 0 && (
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {strafServices.length} Leistung{strafServices.length !== 1 ? 'en' : ''}
+                </span>
+                {strafServices.length > 1 && (
+                  <button
+                    onClick={sortStrafServicesByDate}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-300 transition-all"
+                    title="Nach Datum sortieren (neueste zuerst)"
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    Nach Datum
+                  </button>
+                )}
+              </div>
+            )}
             {/* Straf-Service Cards (nur im Straf-Modus) */}
             {caseMode === CaseMode.CRIMINAL && (
             <div className="space-y-3">
-              {strafServices.map((s) => {
+              {strafServices.map((s, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === strafServices.length - 1;
                 // Berechnung für diese Leistung
                 const isTagsatzungLeistung = isStrafTagsatzung(s.leistungType);
                 const isAHK = !s.leistungType.startsWith('STRAF_RATG') && s.leistungType !== 'STRAF_ZUWARTEN';
@@ -1746,16 +2129,40 @@ const App: React.FC = () => {
 
                 return (
                 <GlassCard key={s.id} className="!p-4 relative group/item ring-1 ring-red-500/20" variant="light">
-                  <button
-                    onClick={() => removeStrafService(s.id)}
-                    className="absolute top-3 right-3 text-slate-300 hover:text-red-500 transition-colors bg-white/40 p-1 rounded-lg border border-white/40 z-20"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Action Buttons: Move + Delete */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1 z-20">
+                    {strafServices.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => moveStrafServiceUp(s.id)}
+                          disabled={isFirst}
+                          className={`p-1 rounded-lg border transition-colors ${isFirst ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 bg-white/40 border-white/40 hover:border-red-300'}`}
+                          title="Nach oben"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveStrafServiceDown(s.id)}
+                          disabled={isLast}
+                          className={`p-1 rounded-lg border transition-colors ${isLast ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 bg-white/40 border-white/40 hover:border-red-300'}`}
+                          title="Nach unten"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => removeStrafService(s.id)}
+                      className="text-slate-300 hover:text-red-500 transition-colors bg-white/40 p-1 rounded-lg border border-white/40"
+                      title="Löschen"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
 
                   <div className="space-y-3 relative z-10">
                     {/* Header: Date + Category Badge + Gericht */}
-                    <div className="flex items-center gap-2 pr-8 flex-wrap">
+                    <div className="flex items-center gap-2 pr-24 flex-wrap">
                       <input
                         type="date"
                         value={s.date}
@@ -2263,9 +2670,10 @@ const App: React.FC = () => {
                         }
                       }
 
-                      // ES-Zuschlag (analog TP 3B: bis zu 4× ES)
+                      // ES-Zuschlag - TP 7/2 + Zuwarten: max einfach, andere: bis zu 4× ES
                       const ratgBaseEsRate = strafBmgl <= 1017000 ? 0.6 : 0.5;
-                      const ratgEsRate = s.esMultiplier * ratgBaseEsRate;
+                      const ratgEsMultiplierCapped = isZeitgebuehr ? Math.min(s.esMultiplier, 1) : s.esMultiplier;
+                      const ratgEsRate = ratgEsMultiplierCapped * ratgBaseEsRate;
                       const ratgEsZuschlag = Math.round(ratgBasisbetrag * ratgEsRate);
 
                       // Zwischensumme für SG
@@ -2283,7 +2691,7 @@ const App: React.FC = () => {
                       const ratgBrutto = ratgNetto + ratgUst;
 
                       const ratgEsLabels = ['keiner', 'einfach', 'doppelt', 'dreifach', 'vierfach'];
-                      const ratgEsLabel = ratgEsLabels[s.esMultiplier] || 'keiner';
+                      const ratgEsLabel = ratgEsLabels[ratgEsMultiplierCapped] || 'keiner';
 
                       return (
                       <div className="space-y-4 pt-2">
@@ -2337,7 +2745,7 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Einheitssatz (analog TP 3B RATG) */}
+                        {/* Einheitssatz - TP 7/2/Zuwarten: max einfach, andere: bis 4× */}
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
@@ -2346,13 +2754,16 @@ const App: React.FC = () => {
                             </span>
                           </div>
                           <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
-                            {[
-                              { val: 0, label: 'keiner' },
-                              { val: 1, label: '1×' },
-                              { val: 2, label: '2×' },
-                              { val: 3, label: '3×' },
-                              { val: 4, label: '4×' }
-                            ].map((opt) => (
+                            {(isZeitgebuehr
+                              ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }]
+                              : [
+                                  { val: 0, label: 'keiner' },
+                                  { val: 1, label: '1×' },
+                                  { val: 2, label: '2×' },
+                                  { val: 3, label: '3×' },
+                                  { val: 4, label: '4×' }
+                                ]
+                            ).map((opt) => (
                               <button
                                 key={opt.val}
                                 onClick={() => updateStrafService(s.id, { esMultiplier: opt.val })}
@@ -2362,6 +2773,11 @@ const App: React.FC = () => {
                               </button>
                             ))}
                           </div>
+                          {isZeitgebuehr && (
+                            <div className="text-[11px] text-slate-500 px-1">
+                              TP 7/Zuwarten: Max. einfacher Einheitssatz
+                            </div>
+                          )}
                         </div>
 
                         {/* ERV Toggle */}
@@ -2576,11 +2992,30 @@ const App: React.FC = () => {
             )}
 
             {/* Haft-Service Cards (nur im Haft-Modus) */}
+            {caseMode === CaseMode.DETENTION && haftServices.length > 0 && (
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {haftServices.length} Leistung{haftServices.length !== 1 ? 'en' : ''}
+                </span>
+                {haftServices.length > 1 && (
+                  <button
+                    onClick={sortHaftServicesByDate}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-amber-600 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 transition-all"
+                    title="Nach Datum sortieren (neueste zuerst)"
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    Nach Datum
+                  </button>
+                )}
+              </div>
+            )}
             {caseMode === CaseMode.DETENTION && (
             <div className="space-y-3">
-              {haftServices.map((s) => {
+              {haftServices.map((s, idx) => {
                 const catalogEntry = HAFT_CATALOG.find(e => e.type === s.leistungType);
                 const hasKm = hasHaftKilometer(s.leistungType);
+                const isFirst = idx === 0;
+                const isLast = idx === haftServices.length - 1;
 
                 // Kategorisierung der Leistungen
                 const isAHKTagsatzung = ['HAFT_VH_1_INSTANZ', 'HAFT_VH_2_INSTANZ'].includes(s.leistungType);
@@ -2666,10 +3101,12 @@ const App: React.FC = () => {
 
                 // ES-Rate berechnen
                 // - RATG-Schriftsätze: 0-4x (keiner bis vierfach)
+                // - RATG-Kommissionen (TP 7/2): 0-1x (keiner oder einfach)
                 // - AHK-Schriftsätze: 0-1x (keiner oder einfach)
+                // - AHK-Tagsatzungen: 0-1x (keiner oder einfach)
                 const esBaseRate = currentBmgl <= 1017000 ? 0.6 : 0.5; // 60% bis € 10.170, sonst 50%
-                const esMultiplierCapped = isAHKSchriftsatz ? Math.min(s.esMultiplier, 1) : s.esMultiplier; // AHK max einfach
-                const esRate = (needsRATGTarif || isAHKSchriftsatz) ? esMultiplierCapped * esBaseRate : 0;
+                const esMultiplierCapped = (isAHKSchriftsatz || isAHKTagsatzung || isRATGKommission) ? Math.min(s.esMultiplier, 1) : s.esMultiplier; // AHK + TP7 max einfach
+                const esRate = (needsRATGTarif || isAHKSchriftsatz || isAHKTagsatzung) ? esMultiplierCapped * esBaseRate : 0;
                 const esZuschlag = Math.round(entlohnung * esRate);
 
                 // ERV-Berechnung (basierend auf ervRateOverride)
@@ -2681,16 +3118,40 @@ const App: React.FC = () => {
 
                 return (
                 <GlassCard key={s.id} className="!p-4 relative group/item" variant="light">
-                  <button
-                    onClick={() => removeHaftService(s.id)}
-                    className="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-colors bg-white/60 p-1.5 rounded-lg border border-slate-200 z-20"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Action Buttons: Move + Delete */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1 z-20">
+                    {haftServices.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => moveHaftServiceUp(s.id)}
+                          disabled={isFirst}
+                          className={`p-1.5 rounded-lg border transition-colors ${isFirst ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-500 hover:text-blue-600 bg-white/60 border-slate-200 hover:border-blue-300'}`}
+                          title="Nach oben"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveHaftServiceDown(s.id)}
+                          disabled={isLast}
+                          className={`p-1.5 rounded-lg border transition-colors ${isLast ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-500 hover:text-blue-600 bg-white/60 border-slate-200 hover:border-blue-300'}`}
+                          title="Nach unten"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => removeHaftService(s.id)}
+                      className="text-slate-400 hover:text-red-500 transition-colors bg-white/60 p-1.5 rounded-lg border border-slate-200"
+                      title="Löschen"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
 
                   <div className="space-y-3 relative z-10">
                     {/* Header: Date + Type Badge */}
-                    <div className="flex items-center gap-2 pr-8">
+                    <div className="flex items-center gap-2 pr-24">
                       <input
                         type="date"
                         value={s.date}
@@ -2789,7 +3250,36 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Ergebnis-Box für Tagsatzungen */}
+                        {/* Einheitssatz für RATG Kommissionen (TP 7/2) und AHK Tagsatzungen - nur einfach möglich */}
+                        {(isRATGKommission || isAHKTagsatzung) && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Einheitssatz</span>
+                              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${
+                                isAHKTagsatzung ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-blue-100 text-blue-800 border-blue-200'
+                              }`}>
+                                {s.esMultiplier === 0 ? 'keiner' : 'einfach'}
+                              </span>
+                            </div>
+                            <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                              {[{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }].map((opt) => (
+                                <button
+                                  key={opt.val}
+                                  onClick={() => updateHaftService(s.id, { esMultiplier: opt.val })}
+                                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
+                                    s.esMultiplier === opt.val
+                                      ? (isAHKTagsatzung ? 'text-amber-800 bg-white shadow-sm ring-1 ring-amber-500/20' : 'text-blue-800 bg-white shadow-sm ring-1 ring-blue-500/20')
+                                      : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Ergebnis-Box für Tagsatzungen/Kommissionen */}
                         <div className="mt-2 p-4 bg-gradient-to-br from-amber-50 to-slate-50 rounded-2xl border border-amber-200/50 space-y-3">
                           <div className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
                             {isAHKTagsatzung ? tpLabel : 'RATG Entlohnung'}
@@ -2799,19 +3289,25 @@ const App: React.FC = () => {
                               <span className="text-xs text-slate-600">Entlohnung ({s.durationHalbeStunden} × ½ Std.)</span>
                               <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(entlohnung)}</span>
                             </div>
+                            {(isRATGKommission || isAHKTagsatzung) && esZuschlag > 0 && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-600">Einheitssatz {Math.round(esRate * 100)}%</span>
+                                <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(esZuschlag)}</span>
+                              </div>
+                            )}
                           </div>
                           <div className="border-t border-amber-200/50 pt-3 space-y-2">
                             <div className="flex justify-between items-center">
                               <span className="text-xs text-slate-700 font-medium">Summe netto</span>
-                              <span className="font-mono text-sm font-bold text-slate-900">{formatEuro(entlohnung)}</span>
+                              <span className="font-mono text-sm font-bold text-slate-900">{formatEuro((isRATGKommission || isAHKTagsatzung) ? entlohnung + esZuschlag : entlohnung)}</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-xs text-slate-600">+ 20% USt</span>
-                              <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(Math.round(entlohnung * 0.2))}</span>
+                              <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(Math.round(((isRATGKommission || isAHKTagsatzung) ? entlohnung + esZuschlag : entlohnung) * 0.2))}</span>
                             </div>
                             <div className="flex justify-between items-center pt-2 border-t border-amber-200/30">
                               <span className="text-xs text-slate-700 font-bold">Brutto</span>
-                              <span className="font-mono text-base font-black text-amber-700">{formatEuro(entlohnung + Math.round(entlohnung * 0.2))}</span>
+                              <span className="font-mono text-base font-black text-amber-700">{formatEuro(((isRATGKommission || isAHKTagsatzung) ? entlohnung + esZuschlag : entlohnung) + Math.round(((isRATGKommission || isAHKTagsatzung) ? entlohnung + esZuschlag : entlohnung) * 0.2))}</span>
                             </div>
                           </div>
                         </div>
@@ -3082,6 +3578,392 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+            )}
+
+            {/* === V-STRAF SERVICE CARDS === */}
+            {caseMode === CaseMode.VSTRAF && (
+            <div className="space-y-3">
+              {vstrafServices.map((s, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === vstrafServices.length - 1;
+
+                // Kategorisierung
+                const isVH = isVStrafTagsatzung(s.leistungType);
+                const isSchriftsatz = s.leistungType.includes('BESCHWERDE');
+                const isRATG = s.leistungType.startsWith('VSTRAF_RATG') || s.leistungType === 'VSTRAF_ZUWARTEN';
+
+                const hasDuration = isVH || s.leistungType === 'VSTRAF_RATG_TP7_2' || s.leistungType === 'VSTRAF_ZUWARTEN';
+
+                // Berechnung
+                const currentBmgl = vstrafBmgl;
+                let entlohnung = 0;
+                let tariffLabel = '';
+                let tpLabel = '';
+
+                const courtType = getVStrafCourtType(vstrafStufe);
+                const tarife = AHK_TARIFE[courtType];
+
+                if (isVH && tarife) {
+                  if (s.leistungType === 'VSTRAF_VH_1_INSTANZ') {
+                    const t = tarife.hv1Instanz;
+                    entlohnung = t.firstHalf + Math.max(0, s.durationHalbeStunden - 1) * t.subsequentHalf;
+                    tpLabel = '§ 13 AHK';
+                  } else if (s.leistungType === 'VSTRAF_BERUFUNG_VH_VOLL' || s.leistungType === 'VSTRAF_BERUFUNG_VH_STRAFE') {
+                    const t = tarife.berufungVhVoll || tarife.berufungVh;
+                    if (t) {
+                      entlohnung = t.firstHalf + Math.max(0, s.durationHalbeStunden - 1) * t.subsequentHalf;
+                    }
+                    tpLabel = '§ 13 AHK';
+                  }
+                  tariffLabel = VSTRAF_STUFE_LABELS[vstrafStufe];
+                } else if (s.leistungType === 'VSTRAF_BESCHWERDE_VOLL' || s.leistungType === 'VSTRAF_BESCHWERDE_STRAFE') {
+                  if (tarife) {
+                    if (s.isNurStrafhoehe && tarife.berufungStrafe) {
+                      entlohnung = tarife.berufungStrafe;
+                    } else if (tarife.berufungVoll) {
+                      entlohnung = tarife.berufungVoll;
+                    } else if (tarife.berufung) {
+                      entlohnung = tarife.berufung;
+                    } else {
+                      const tp3b = getTariffBase(currentBmgl, 'TP3B');
+                      entlohnung = tp3b.base;
+                    }
+                  }
+                  tpLabel = '§ 13 AHK';
+                  tariffLabel = VSTRAF_STUFE_LABELS[vstrafStufe];
+                } else if (s.leistungType === 'VSTRAF_RATG_TP7_2' || s.leistungType === 'VSTRAF_ZUWARTEN') {
+                  const kommResult = getKommission(currentBmgl, s.durationHalbeStunden, 0, true);
+                  entlohnung = kommResult.kommission;
+                  tpLabel = 'TP 7/2 RATG';
+                  tariffLabel = `BMGL € ${(currentBmgl / 100).toLocaleString('de-AT')}`;
+                } else if (s.leistungType === 'VSTRAF_RATG_TP3A') {
+                  const tariffResult = getTariffBase(currentBmgl, 'TP3A');
+                  entlohnung = tariffResult.base;
+                  tpLabel = 'TP 3A RATG';
+                  tariffLabel = tariffResult.label;
+                } else if (s.leistungType === 'VSTRAF_RATG_TP3B') {
+                  const tariffResult = getTariffBase(currentBmgl, 'TP3B');
+                  entlohnung = tariffResult.base;
+                  tpLabel = 'TP 3B RATG';
+                  tariffLabel = tariffResult.label;
+                } else if (s.leistungType === 'VSTRAF_RATG_TP2') {
+                  const tariffResult = getTariffBase(currentBmgl, 'TP2');
+                  entlohnung = tariffResult.base;
+                  tpLabel = 'TP 2 RATG';
+                  tariffLabel = tariffResult.label;
+                }
+
+                // ES-Rate berechnen
+                const esBaseRate = currentBmgl <= 1017000 ? 0.6 : 0.5;
+                const isZeitgebuehr = s.leistungType === 'VSTRAF_RATG_TP7_2' || s.leistungType === 'VSTRAF_ZUWARTEN';
+                const esMultiplierCapped = (isVH || isZeitgebuehr) ? Math.min(s.esMultiplier, 1) : s.esMultiplier;
+                const esRate = esMultiplierCapped * esBaseRate;
+                const esZuschlag = Math.round(entlohnung * esRate);
+
+                // ERV
+                const ervAmount = s.includeErv
+                  ? (s.ervRateOverride === 'regular' ? 260 : 500)
+                  : 0;
+                const nettoSumme = entlohnung + esZuschlag + ervAmount;
+                const ust = Math.round(nettoSumme * 0.2);
+
+                return (
+                <GlassCard key={s.id} className="!p-4 relative group/item" variant="light">
+                  {/* Action Buttons */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1 z-20">
+                    {vstrafServices.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => moveVstrafServiceUp(s.id)}
+                          disabled={isFirst}
+                          className={`p-1.5 rounded-lg border transition-colors ${isFirst ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-500 hover:text-orange-600 bg-white/60 border-slate-200 hover:border-orange-300'}`}
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveVstrafServiceDown(s.id)}
+                          disabled={isLast}
+                          className={`p-1.5 rounded-lg border transition-colors ${isLast ? 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed' : 'text-slate-500 hover:text-orange-600 bg-white/60 border-slate-200 hover:border-orange-300'}`}
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => removeVstrafService(s.id)}
+                      className="text-slate-400 hover:text-red-500 transition-colors bg-white/60 p-1.5 rounded-lg border border-slate-200"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 relative z-10">
+                    {/* Header */}
+                    <div className="flex items-center gap-2 pr-24">
+                      <input
+                        type="date"
+                        value={s.date}
+                        onChange={e => updateVstrafService(s.id, { date: e.target.value })}
+                        className="bg-white/60 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 shadow-sm w-28"
+                      />
+                      <span className={`px-2 py-1 rounded-lg text-white text-[10px] font-black shrink-0 ${
+                        isVH || isSchriftsatz ? 'bg-orange-600' : 'bg-blue-500'
+                      }`}>
+                        {isVH || isSchriftsatz ? '§13 AHK' : tpLabel || 'RATG'}
+                      </span>
+                      {s.isNurStrafhoehe && (
+                        <span className="px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-[10px] font-bold">
+                          nur Strafhöhe
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Service Dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenVstrafServiceDropdown(openVstrafServiceDropdown === s.id ? null : s.id)}
+                        className="w-full bg-slate-800 border-none rounded-xl px-3 py-2 text-sm font-bold text-white text-left cursor-pointer pr-8 shadow-lg ring-1 ring-white/10 hover:bg-slate-700 transition-colors"
+                      >
+                        {s.label || 'Leistung wählen...'}
+                      </button>
+                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none transition-transform ${openVstrafServiceDropdown === s.id ? 'rotate-180' : ''}`} />
+
+                      {openVstrafServiceDropdown === s.id && (
+                        <div className="absolute top-full left-0 right-0 z-50 mt-2 p-3 rounded-2xl bg-slate-900 border border-white/10 shadow-2xl backdrop-blur-3xl max-h-[400px] overflow-y-auto custom-scrollbar">
+                          {(Object.entries(groupedVstrafCatalog) as [VStrafCatalogCategory, typeof vstrafCatalog][]).map(([cat, entries]) => (
+                            entries.length > 0 && (
+                              <div key={cat}>
+                                <div className={`text-[11px] font-black uppercase tracking-widest px-2 py-1 mb-1 mt-2 first:mt-0 ${
+                                  cat === 'VERHANDLUNG' ? 'text-orange-400' :
+                                  cat === 'SCHRIFTSATZ' ? 'text-blue-400' : 'text-slate-400'
+                                }`}>
+                                  {VSTRAF_CATEGORY_LABELS[cat]}
+                                </div>
+                                {entries.map(entry => (
+                                  <button
+                                    key={entry.id}
+                                    onClick={() => {
+                                      const defaults = getDefaultVStrafService(entry.leistungType);
+                                      updateVstrafService(s.id, {
+                                        leistungType: entry.leistungType,
+                                        label: entry.short,
+                                        durationHalbeStunden: defaults.durationHalbeStunden,
+                                        esMultiplier: defaults.esMultiplier,
+                                        includeErv: defaults.includeErv,
+                                        isNurStrafhoehe: entry.leistungType.includes('_STRAFE'),
+                                      });
+                                      setOpenVstrafServiceDropdown(null);
+                                    }}
+                                    className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                  >
+                                    <span className="text-sm font-medium text-white/90 group-hover:text-orange-400">{entry.short}</span>
+                                    <span className="text-xs text-slate-500 block">{entry.full}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dauer für VH und TP 7/2 */}
+                    {hasDuration && (
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-slate-400" />
+                          <span className="text-xs text-slate-600 font-bold">Dauer:</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => updateVstrafService(s.id, { durationHalbeStunden: Math.max(1, s.durationHalbeStunden - 1) })}
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold"
+                          >-</button>
+                          <input
+                            type="number"
+                            min={1}
+                            value={s.durationHalbeStunden}
+                            onChange={e => updateVstrafService(s.id, { durationHalbeStunden: Math.max(1, Number(e.target.value)) })}
+                            className="w-12 bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-center text-slate-800"
+                          />
+                          <button
+                            onClick={() => updateVstrafService(s.id, { durationHalbeStunden: s.durationHalbeStunden + 1 })}
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold"
+                          >+</button>
+                          <span className="text-sm text-slate-500 ml-1">½ Std.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ES Auswahl */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-600 font-bold flex items-center gap-2">
+                        <Layers className="h-3.5 w-3.5 text-slate-400" /> Einheitssatz
+                      </span>
+                      <div className="flex gap-1">
+                        {[0, 1, 2, 3, 4].map(mult => {
+                          const maxMult = (isVH || isZeitgebuehr) ? 1 : 4;
+                          const disabled = mult > maxMult;
+                          return (
+                            <button
+                              key={mult}
+                              disabled={disabled}
+                              onClick={() => updateVstrafService(s.id, { esMultiplier: mult })}
+                              className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
+                                disabled ? 'bg-slate-100 text-slate-300 cursor-not-allowed' :
+                                s.esMultiplier === mult
+                                  ? 'bg-orange-500 text-white shadow-lg'
+                                  : 'bg-white text-slate-600 border border-slate-200 hover:border-orange-300'
+                              }`}
+                            >
+                              {mult}×
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* ERV Toggle */}
+                    {!isVH && (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-200/50">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-xs text-slate-700 font-bold">ERV-Beitrag</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {s.includeErv && (
+                            <select
+                              value={s.ervRateOverride || 'initial'}
+                              onChange={e => updateVstrafService(s.id, { ervRateOverride: e.target.value as 'initial' | 'regular' })}
+                              className="text-xs bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-bold"
+                            >
+                              <option value="initial">€ 5,00</option>
+                              <option value="regular">€ 2,60</option>
+                            </select>
+                          )}
+                          <button
+                            onClick={() => updateVstrafService(s.id, { includeErv: !s.includeErv })}
+                            className={`relative w-10 h-6 rounded-full transition-all ${s.includeErv ? 'bg-orange-500' : 'bg-slate-200'}`}
+                          >
+                            <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${s.includeErv ? 'translate-x-4' : ''}`}></div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Kosten-Zusammenfassung */}
+                    <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border border-orange-200/50 space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-600">{tpLabel} Entlohnung</span>
+                        <span className="font-mono font-bold text-slate-800">{formatEuro(entlohnung)}</span>
+                      </div>
+                      {esZuschlag > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">+ ES {(esRate * 100).toFixed(0)}%</span>
+                          <span className="font-mono font-bold text-slate-700">{formatEuro(esZuschlag)}</span>
+                        </div>
+                      )}
+                      {ervAmount > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">+ ERV-Beitrag</span>
+                          <span className="font-mono font-bold text-slate-700">{formatEuro(ervAmount)}</span>
+                        </div>
+                      )}
+                      <div className="pt-2 border-t border-orange-200/50 flex justify-between">
+                        <span className="text-sm font-bold text-slate-700">Netto</span>
+                        <span className="font-mono text-lg font-black text-orange-700">{formatEuro(nettoSumme)}</span>
+                      </div>
+                      {!isVatFree && (
+                        <div className="flex justify-between text-xs text-slate-500">
+                          <span>+ 20% USt</span>
+                          <span className="font-mono">{formatEuro(ust)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </GlassCard>
+                );
+              })}
+
+              {/* Add V-Straf Service Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowVstrafCatalog(!showVstrafCatalog)}
+                  className="w-full py-4 rounded-2xl border-2 border-dashed border-orange-500/30 text-orange-400/70 hover:text-orange-400 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest group"
+                >
+                  <Plus className="h-4 w-4 group-hover:scale-125 transition-transform" /> V-Straf Leistung Hinzufügen
+                </button>
+
+                {showVstrafCatalog && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-2 p-3 rounded-2xl bg-slate-900 border border-orange-500/20 shadow-2xl backdrop-blur-3xl animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="relative mb-3">
+                      <input
+                        autoFocus
+                        placeholder="Suchen (z.B. Verhandlung, Beschwerde...)"
+                        value={vstrafSearchTerm}
+                        onChange={(e) => setVstrafSearchTerm(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-orange-500/30"
+                      />
+                    </div>
+                    {vstrafSearchTerm ? (
+                      <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1">
+                        {filteredVstrafCatalog.map(entry => (
+                          <button
+                            key={entry.id}
+                            onClick={() => addVstrafService(entry.leistungType, entry.short)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors group"
+                          >
+                            <span className="text-sm font-medium text-white/90 group-hover:text-orange-400">{entry.short}</span>
+                            <span className="text-xs text-slate-500 block">{entry.full}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+                        {(Object.entries(groupedVstrafCatalog) as [VStrafCatalogCategory, typeof vstrafCatalog][]).map(([cat, entries]) => (
+                          entries.length > 0 && (
+                            <div key={cat}>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-2 px-2">
+                                {VSTRAF_CATEGORY_LABELS[cat]}
+                              </p>
+                              <div className="space-y-1">
+                                {entries.map((entry) => (
+                                  <button
+                                    key={entry.id}
+                                    onClick={() => addVstrafService(entry.leistungType, entry.short)}
+                                    className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors group flex items-center gap-2"
+                                  >
+                                    <span className={`px-2 py-1 rounded-lg text-white text-[10px] font-black shrink-0 ${
+                                      cat === 'VERHANDLUNG' ? 'bg-orange-600' :
+                                      cat === 'SCHRIFTSATZ' ? 'bg-blue-500' :
+                                      'bg-slate-500'
+                                    }`}>
+                                      {cat === 'VERHANDLUNG' ? 'VH' : cat === 'SCHRIFTSATZ' ? 'SS' : 'RATG'}
+                                    </span>
+                                    <span className="text-sm font-medium text-white/90 group-hover:text-orange-400">{entry.short}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Sort Button */}
+              {vstrafServices.length > 1 && (
+                <button
+                  onClick={sortVstrafServicesByDate}
+                  className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-orange-400 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowUpDown className="h-3 w-3" />
+                  Nach Datum sortieren
+                </button>
+              )}
             </div>
             )}
           </div>

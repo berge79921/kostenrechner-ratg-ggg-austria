@@ -17,6 +17,10 @@ export interface PDFOptions {
   // Straf-spezifisch
   courtType?: string;
   courtTypeLabel?: string;
+  // V-Straf-spezifisch
+  vstrafStufe?: string;
+  vstrafStufeLabel?: string;
+  vstrafVerfallswert?: number;
 }
 
 export function generateKostenverzeichnisPDF(
@@ -51,7 +55,9 @@ export function generateKostenverzeichnisPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('Verfahrensart:', 14, yPos);
   doc.setFont('helvetica', 'normal');
-  if (caseMode === CaseMode.DETENTION) {
+  if (caseMode === CaseMode.VSTRAF) {
+    doc.text('Verwaltungsstrafsachen (§ 13 AHK)', 65, yPos);
+  } else if (caseMode === CaseMode.DETENTION) {
     doc.text('Haftverfahren (§ 9 Abs 1 Z 5 AHK)', 65, yPos);
   } else if (caseMode === CaseMode.CRIMINAL) {
     doc.text(`Strafverfahren - ${options?.courtTypeLabel || 'Gerichtshof'}`, 65, yPos);
@@ -64,7 +70,12 @@ export function generateKostenverzeichnisPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('Bemessungsgrundlage:', 14, yPos);
   doc.setFont('helvetica', 'normal');
-  if (caseMode === CaseMode.DETENTION) {
+  if (caseMode === CaseMode.VSTRAF) {
+    const verfallText = options?.vstrafVerfallswert && options.vstrafVerfallswert > 0
+      ? ` + Verfallswert ${formatEuro(options.vstrafVerfallswert)}`
+      : '';
+    doc.text(`${formatEuro(bmgl * 100)} (§ 13 Abs 1 AHK${verfallText})`, 65, yPos);
+  } else if (caseMode === CaseMode.DETENTION) {
     doc.text(`${formatEuro(bmgl * 100)} (§ 10 Abs 1 AHK - ${options?.haftBmglLabel || 'Gerichtshof'})`, 65, yPos);
   } else if (caseMode === CaseMode.CRIMINAL) {
     doc.text(`${formatEuro(bmgl * 100)} (§ 10 Abs 1 AHK - ${options?.courtTypeLabel || 'Gerichtshof'})`, 65, yPos);
@@ -89,12 +100,21 @@ export function generateKostenverzeichnisPDF(
   doc.text(isVatFree ? 'Umsatzsteuerfrei (Netto)' : 'Regel-USt (20%)', 65, yPos);
   yPos += 6;
 
-  // Rechtsgrundlage für Haft/Straf
-  if (caseMode === CaseMode.DETENTION || caseMode === CaseMode.CRIMINAL) {
+  // Rechtsgrundlage für Haft/Straf/V-Straf
+  if (caseMode === CaseMode.DETENTION || caseMode === CaseMode.CRIMINAL || caseMode === CaseMode.VSTRAF) {
     doc.setFont('helvetica', 'bold');
     doc.text('Rechtsgrundlage:', 14, yPos);
     doc.setFont('helvetica', 'normal');
     doc.text('AHK (Autonome Honorarkriterien) + RATG', 65, yPos);
+    yPos += 6;
+  }
+
+  // Strafdrohung für V-Straf
+  if (caseMode === CaseMode.VSTRAF && options?.vstrafStufeLabel) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Strafdrohung:', 14, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(options.vstrafStufeLabel, 65, yPos);
     yPos += 6;
   }
 

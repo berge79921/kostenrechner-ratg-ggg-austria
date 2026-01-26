@@ -128,6 +128,7 @@ export enum CaseMode {
   CIVIL = 'CIVIL',
   CRIMINAL = 'CRIMINAL',
   DETENTION = 'DETENTION', // Haftrecht (§ 10 AHK)
+  VSTRAF = 'VSTRAF',       // Verwaltungsstrafsachen (§ 13 AHK)
 }
 
 // Re-export AHK types
@@ -190,4 +191,48 @@ export interface HaftService {
   kilometerHin?: number;        // Entfernung Kanzlei → Haftanstalt (einfach)
   isRueckfahrt?: boolean;       // Mit Rückfahrt (verdoppelt km)
   isFrustriert?: boolean;       // Frustrierte Verhandlung
+}
+
+// ============================================================================
+// VERWALTUNGSSTRAFSACHEN - AHK § 13
+// ============================================================================
+
+// BMGL-Stufe nach § 13 Abs 1 AHK
+export type VStrafStufe =
+  | 'Z1'    // bis € 730 → BG
+  | 'Z2'    // bis € 2.180 → ER_GH
+  | 'Z3'    // € 2.180-4.360 → SCHOEFFEN
+  | 'Z4'    // über € 4.360 / + Haft → GESCHWORENEN
+  | 'Z5'    // Finanzstrafverfahren → SCHOEFFEN
+  | 'Z6A'   // Disziplinarverfahren leicht → BG
+  | 'Z6B'   // Disziplinarverfahren mittel → ER_GH
+  | 'Z6C';  // Disziplinarverfahren schwer → SCHOEFFEN
+
+// Leistungstypen (analog Straf, § 9 sinngemäß)
+export type VStrafLeistungType =
+  // Verhandlungen
+  | 'VSTRAF_VH_1_INSTANZ'        // VH 1. Instanz
+  | 'VSTRAF_BERUFUNG_VH_VOLL'    // Berufungs-VH (volle Anfechtung)
+  | 'VSTRAF_BERUFUNG_VH_STRAFE'  // Berufungs-VH (nur Strafhöhe, § 13 Abs 4)
+  // Schriftsätze
+  | 'VSTRAF_BESCHWERDE_VOLL'     // Beschwerde (volle Anfechtung)
+  | 'VSTRAF_BESCHWERDE_STRAFE'   // Beschwerde nur Strafhöhe (§ 13 Abs 4)
+  // RATG (§ 10 sinngemäß)
+  | 'VSTRAF_RATG_TP2'            // TP 2 - Kurze Anträge
+  | 'VSTRAF_RATG_TP3A'           // TP 3A - Anträge
+  | 'VSTRAF_RATG_TP3B'           // TP 3B - Beschwerden
+  | 'VSTRAF_RATG_TP7_2'          // TP 7/2 - Kommission
+  | 'VSTRAF_ZUWARTEN';           // Zuwarten
+
+export interface VStrafService {
+  id: string;
+  date: string;
+  label: string;
+  leistungType: VStrafLeistungType;
+  durationHalbeStunden: number;  // Dauer in halben Stunden
+  waitingHalbeStunden: number;   // Wartezeit in halben Stunden
+  esMultiplier: number;          // 0-4
+  includeErv: boolean;
+  ervRateOverride?: 'initial' | 'regular';
+  isNurStrafhoehe?: boolean;     // § 13 Abs 4: nur Strafhöhe → reduzierter Tarif
 }
