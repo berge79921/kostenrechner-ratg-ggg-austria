@@ -80,6 +80,8 @@ export interface LegalService {
   is473aZPO?: boolean; // TP 3B Ia: nach § 473a ZPO → Entlohnung halbiert
   isRaRaaErforderlich?: boolean; // TP 7: false = TP 7/1 (Gehilfe), true = TP 7/2 (RA/RAA erforderlich)
   tp?: string; // Tarifpost aus Katalog (z.B. 'TP7', 'TP5', etc.)
+  vollzugsgebuehr?: import('./lib/vollzugsgebuehren').VollzugsgebuehrType; // Vollzugsgebühr § 455 EO (nur Exekution)
+  catalogId?: string; // ID aus dem Katalog für Vollzugsgebühr-Erkennung
 }
 
 export enum PleadingSubtype {
@@ -241,15 +243,73 @@ export interface VStrafService {
 // KOSTENNOTE EXPORT/IMPORT - Falldaten
 // ============================================================================
 
+// Exekutions-spezifische Metadaten (nur bei ProcedureType.EXEKUTION)
+export type TitelArt = 'Zahlungsbefehl' | 'Urteil' | 'Vergleich' | 'Beschluss' | 'Sonstig';
+
+export interface FruehereKosten {
+  gericht: string;
+  gz: string;
+  betrag: number;
+}
+
+export interface ExekutionMetadata {
+  // Verpflichtete Partei (Schuldner)
+  verpflichteterName: string;
+  verpflichteterStrasse: string;
+  verpflichteterPlz: string;
+  verpflichteterOrt: string;
+  verpflichteterLand: string;          // z.B. "Österreich", "Italien"
+  verpflichteterGeburtsdatum: string;  // TT.MM.JJJJ
+  verpflichteterFirmenbuchNr?: string; // bei juristischen Personen
+
+  // Exekutionstitel
+  titelArt: TitelArt;
+  titelGericht: string;                // z.B. "LG Wiener Neustadt"
+  titelGZ: string;                     // z.B. "56 Cg 50/23p"
+  titelDatum: string;                  // TT.MM.JJJJ
+  vollstreckbarkeitDatum: string;      // TT.MM.JJJJ
+
+  // Forderung aus Titel
+  kapitalforderung: number;            // in Euro
+  zinsenProzent: number;               // z.B. 4 oder 8
+  zinsenBasis: number;                 // Betrag für Zinsen
+  zinsenAb: string;                    // Datum TT.MM.JJJJ
+  kostenAusTitel: number;              // Kosten aus dem Titel
+
+  // Frühere Exekutionen (optional)
+  fruehereKosten: FruehereKosten[];
+}
+
+export const DEFAULT_EXEKUTION_METADATA: ExekutionMetadata = {
+  verpflichteterName: '',
+  verpflichteterStrasse: '',
+  verpflichteterPlz: '',
+  verpflichteterOrt: '',
+  verpflichteterLand: '',
+  verpflichteterGeburtsdatum: '',
+  titelArt: 'Zahlungsbefehl',
+  titelGericht: '',
+  titelGZ: '',
+  titelDatum: '',
+  vollstreckbarkeitDatum: '',
+  kapitalforderung: 0,
+  zinsenProzent: 4,
+  zinsenBasis: 0,
+  zinsenAb: '',
+  kostenAusTitel: 0,
+  fruehereKosten: [],
+};
+
 export interface CaseMetadata {
   // Fall-Identifikation
   geschaeftszahl: string;      // z.B. "1 Cg 123/24k"
   gericht: string;             // z.B. "LG Wien"
-  // Vertretene Partei
+  // Vertretene Partei (= Betreibende Partei bei Exekution)
   parteiName: string;
   parteiStrasse: string;
   parteiPlz: string;
   parteiOrt: string;
+  parteiLand: string;                // z.B. "Österreich", "Italien"
   // Kanzlei (eigene Daten)
   kanzleiName: string;
   kanzleiStrasse: string;
@@ -258,6 +318,8 @@ export interface CaseMetadata {
   // Meta
   erstelltAm: string;          // ISO date YYYY-MM-DD
   version: string;             // CSV format version
+  // Exekution-spezifisch (nur bei ProcedureType.EXEKUTION)
+  exekution?: ExekutionMetadata;
 }
 
 export const DEFAULT_CASE_METADATA: CaseMetadata = {
@@ -267,6 +329,7 @@ export const DEFAULT_CASE_METADATA: CaseMetadata = {
   parteiStrasse: '',
   parteiPlz: '',
   parteiOrt: '',
+  parteiLand: '',
   kanzleiName: '',
   kanzleiStrasse: '',
   kanzleiPlz: '',
@@ -330,7 +393,7 @@ export interface SavedKostennote {
 export const DEFAULT_KOSTENNOTE_STATE: KostennoteState = {
   caseMode: CaseMode.CIVIL,
   isVatFree: false,
-  bmgl: 25000,
+  bmgl: 0,
   procedureType: ProcedureType.ZIVILPROZESS,
   additionalParties: 0,
   autoGgg: true,

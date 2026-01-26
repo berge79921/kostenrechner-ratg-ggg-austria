@@ -3,6 +3,9 @@
 import {
   CaseMetadata,
   DEFAULT_CASE_METADATA,
+  DEFAULT_EXEKUTION_METADATA,
+  ExekutionMetadata,
+  TitelArt,
   CaseMode,
   ProcedureType,
   LegalService,
@@ -70,6 +73,8 @@ function parseCivilService(parts: string[]): LegalService | null {
     is473aZPO: parseBool(parts[15] ?? '0'),
     isRaRaaErforderlich: parseBool(parts[16] ?? '0'),
     tp: parts[17] || undefined,
+    catalogId: parts[18] || undefined,
+    vollzugsgebuehr: (parts[19] as LegalService['vollzugsgebuehr']) || undefined,
   };
 }
 
@@ -187,7 +192,7 @@ export function importFromCSV(csv: string): ImportResult {
     metadata: { ...DEFAULT_CASE_METADATA },
     caseMode: CaseMode.CIVIL,
     isVatFree: false,
-    bmgl: 25000,
+    bmgl: 0,
     procedureType: ProcedureType.ZIVILPROZESS,
     additionalParties: 0,
     autoGgg: true,
@@ -229,7 +234,7 @@ export function importFromCSV(csv: string): ImportResult {
           state.isVatFree = parseBool(value);
           break;
         case 'bmgl':
-          state.bmgl = parseNumber(value, 25000);
+          state.bmgl = parseNumber(value, 0);
           break;
         case 'procedureType':
           state.procedureType = value as ProcedureType;
@@ -272,6 +277,39 @@ export function importFromCSV(csv: string): ImportResult {
           break;
         default:
           warnings.push(`Unbekannter State-Schlüssel: ${key}`);
+      }
+    } else if (type === 'EXEKUTION') {
+      // Exekution-Metadaten
+      const key = parts[1];
+      const value = unescapeCSV(parts[2] ?? '');
+      if (!state.metadata.exekution) {
+        state.metadata.exekution = { ...DEFAULT_EXEKUTION_METADATA };
+      }
+      const exek = state.metadata.exekution;
+      switch (key) {
+        case 'verpflichteterName': exek.verpflichteterName = value; break;
+        case 'verpflichteterStrasse': exek.verpflichteterStrasse = value; break;
+        case 'verpflichteterPlz': exek.verpflichteterPlz = value; break;
+        case 'verpflichteterOrt': exek.verpflichteterOrt = value; break;
+        case 'verpflichteterLand': exek.verpflichteterLand = value; break;
+        case 'verpflichteterGeburtsdatum': exek.verpflichteterGeburtsdatum = value; break;
+        case 'titelArt': exek.titelArt = value as TitelArt; break;
+        case 'titelGericht': exek.titelGericht = value; break;
+        case 'titelGZ': exek.titelGZ = value; break;
+        case 'titelDatum': exek.titelDatum = value; break;
+        case 'vollstreckbarkeitDatum': exek.vollstreckbarkeitDatum = value; break;
+        case 'kapitalforderung': exek.kapitalforderung = parseNumber(value, 0); break;
+        case 'zinsenProzent': exek.zinsenProzent = parseNumber(value, 0); break;
+        case 'zinsenBasis': exek.zinsenBasis = parseNumber(value, 0); break;
+        case 'zinsenAb': exek.zinsenAb = value; break;
+        case 'kostenAusTitel': exek.kostenAusTitel = parseNumber(value, 0); break;
+        case 'fruehereKosten':
+          try {
+            exek.fruehereKosten = JSON.parse(value);
+          } catch {
+            exek.fruehereKosten = [];
+          }
+          break;
       }
     } else if (type === 'SERVICE') {
       const mode = parts[1];
@@ -386,7 +424,7 @@ function parseV2Archive(lines: string[]): MultiImportResult {
       currentState = {
         caseMode: CaseMode.CIVIL,
         isVatFree: false,
-        bmgl: 25000,
+        bmgl: 0,
         procedureType: ProcedureType.ZIVILPROZESS,
         additionalParties: 0,
         autoGgg: true,
@@ -427,7 +465,7 @@ function parseV2Archive(lines: string[]): MultiImportResult {
         switch (key) {
           case 'caseMode': currentState.caseMode = value as CaseMode; break;
           case 'isVatFree': currentState.isVatFree = parseBool(value); break;
-          case 'bmgl': currentState.bmgl = parseNumber(value, 25000); break;
+          case 'bmgl': currentState.bmgl = parseNumber(value, 0); break;
           case 'procedureType': currentState.procedureType = value as ProcedureType; break;
           case 'additionalParties': currentState.additionalParties = parseNumber(value, 0); break;
           case 'autoGgg': currentState.autoGgg = parseBool(value); break;
@@ -441,6 +479,39 @@ function parseV2Archive(lines: string[]): MultiImportResult {
           case 'vstrafVerfallswert': currentState.vstrafVerfallswert = parseNumber(value, 0); break;
           case 'vstrafStreitgenossen': currentState.vstrafStreitgenossen = parseNumber(value, 0); break;
           case 'vstrafErfolgszuschlag': currentState.vstrafErfolgszuschlag = parseNumber(value, 0); break;
+        }
+      } else if (type === 'EXEKUTION') {
+        // Exekution-Metadaten
+        const key = parts[1];
+        const value = unescapeCSV(parts[2] ?? '');
+        if (!currentKostennote.metadata!.exekution) {
+          currentKostennote.metadata!.exekution = { ...DEFAULT_EXEKUTION_METADATA };
+        }
+        const exek = currentKostennote.metadata!.exekution;
+        switch (key) {
+          case 'verpflichteterName': exek.verpflichteterName = value; break;
+          case 'verpflichteterStrasse': exek.verpflichteterStrasse = value; break;
+          case 'verpflichteterPlz': exek.verpflichteterPlz = value; break;
+          case 'verpflichteterOrt': exek.verpflichteterOrt = value; break;
+          case 'verpflichteterLand': exek.verpflichteterLand = value; break;
+          case 'verpflichteterGeburtsdatum': exek.verpflichteterGeburtsdatum = value; break;
+          case 'titelArt': exek.titelArt = value as TitelArt; break;
+          case 'titelGericht': exek.titelGericht = value; break;
+          case 'titelGZ': exek.titelGZ = value; break;
+          case 'titelDatum': exek.titelDatum = value; break;
+          case 'vollstreckbarkeitDatum': exek.vollstreckbarkeitDatum = value; break;
+          case 'kapitalforderung': exek.kapitalforderung = parseNumber(value, 0); break;
+          case 'zinsenProzent': exek.zinsenProzent = parseNumber(value, 0); break;
+          case 'zinsenBasis': exek.zinsenBasis = parseNumber(value, 0); break;
+          case 'zinsenAb': exek.zinsenAb = value; break;
+          case 'kostenAusTitel': exek.kostenAusTitel = parseNumber(value, 0); break;
+          case 'fruehereKosten':
+            try {
+              exek.fruehereKosten = JSON.parse(value);
+            } catch {
+              exek.fruehereKosten = [];
+            }
+            break;
         }
       } else if (type === 'SERVICE') {
         const mode = parts[1];

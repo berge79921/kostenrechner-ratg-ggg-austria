@@ -38,6 +38,7 @@ import { SERVICE_CATALOG, getGroupedCatalog, getFilteredCatalog, CATEGORY_LABELS
 import { generateKostenverzeichnisPDF } from './lib/pdfGenerator';
 import { deriveGGGWithLabel } from './lib/ggg-derive';
 import { getGGG } from './lib/ggg';
+import { VOLLZUGSGEBUEHR_OPTIONS, getVollzugsgebuehr, VollzugsgebuehrType, isExekutionsantragService } from './lib/vollzugsgebuehren';
 import { getTariffBase, getTagsatzung, TagsatzungType, getKommission } from './lib/tariffs';
 // Straf-Imports
 import {
@@ -69,8 +70,11 @@ import { exportToCSV, generateFilename, ExportState, exportAllKostennoten, gener
 import { importFromCSV, importMultipleKostennoten } from './lib/csvImport';
 import { saveKanzleiData, loadKanzleiData } from './lib/storage';
 import { loadAllKostennoten, saveAllKostennoten, saveKostennote, deleteKostennote as deleteKostennoteFromStore, createNewKostennote } from './lib/kostennotenStore';
-import { CaseMetadataForm } from './components/CaseMetadataForm';
+import { CaseMetadataForm, PrintOptions } from './components/CaseMetadataForm';
 import { KostennotenList } from './components/KostennotenList';
+import { ExekutionUpload } from './components/ExekutionUpload';
+import { DEFAULT_EXEKUTION_METADATA, ExekutionMetadata } from './types';
+import type { ExtractedExekutionData } from './lib/documentExtractor';
 
 // Helper: Map ServiceType to TagsatzungType
 function getTagsatzungType(serviceType: ServiceType): TagsatzungType | null {
@@ -132,7 +136,7 @@ function InfoModal({ line, onClose }: { line: CalculatedLine | null, onClose: ()
 const App: React.FC = () => {
   // --- State ---
   const [caseMode, setCaseMode] = useState<CaseMode>(CaseMode.CIVIL);
-  const [bmgl, setBmgl] = useState<number>(25000);
+  const [bmgl, setBmgl] = useState<number>(0);
   const [services, setServices] = useState<LegalService[]>([]);
   const [procedureType, setProcedureType] = useState<ProcedureType>(ProcedureType.ZIVILPROZESS);
   const [additionalParties, setAdditionalParties] = useState<number>(0);
@@ -181,6 +185,13 @@ const App: React.FC = () => {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Druckoptionen für PDF ---
+  const [printOptions, setPrintOptions] = useState<PrintOptions>({
+    printTiteldaten: true,
+    printExekutionsdaten: true,
+    printKanzlei: true,
+  });
+
   // --- Multi-Kostennoten State ---
   const [view, setView] = useState<AppView>('list');
   const [kostennoten, setKostennoten] = useState<SavedKostennote[]>([]);
@@ -200,6 +211,87 @@ const App: React.FC = () => {
   // Handler für Kanzleidaten-Änderung (speichert in localStorage)
   const handleKanzleiChange = (data: KanzleiData) => {
     saveKanzleiData(data);
+  };
+
+  // Handler für extrahierte Exekutionsdaten aus PDF
+  const handleExekutionDataExtracted = (data: ExtractedExekutionData) => {
+    // Titel-Art mappen
+    const titelArtMap: Record<string, ExekutionMetadata['titelArt']> = {
+      'Zahlungsbefehl': 'Zahlungsbefehl',
+      'Urteil': 'Urteil',
+      'Vergleich': 'Vergleich',
+      'Beschluss': 'Beschluss',
+    };
+
+    // CaseMetadata aktualisieren - jetzt mit direkten Feldern statt kombinierter Adresse
+    setCaseMetadata(prev => ({
+      ...prev,
+      // Betreibende Partei = Partei (eigener Mandant)
+      parteiName: data.betreibenderName,
+      parteiStrasse: data.betreibenderStrasse || '',
+      parteiPlz: data.betreibenderPlz || '',
+      parteiOrt: data.betreibenderOrt || '',
+      parteiLand: data.betreibenderLand || '',
+      // Gericht aus Titel (= Exekutionsgericht, wird später ggf. geändert)
+      gericht: data.titelGericht,
+      geschaeftszahl: data.titelGZ,
+      // Kanzleidaten (falls extrahiert)
+      ...(data.kanzleiName ? {
+        kanzleiName: data.kanzleiName,
+        kanzleiStrasse: data.kanzleiStrasse || '',
+        kanzleiPlz: data.kanzleiPlz || '',
+        kanzleiOrt: data.kanzleiOrt || '',
+      } : {}),
+      // Exekution-spezifische Daten
+      exekution: {
+        verpflichteterName: data.verpflichteterName,
+        verpflichteterStrasse: data.verpflichteterStrasse || '',
+        verpflichteterPlz: data.verpflichteterPlz || '',
+        verpflichteterOrt: data.verpflichteterOrt || '',
+        verpflichteterLand: data.verpflichteterLand || '',
+        verpflichteterGeburtsdatum: data.verpflichteterGeburtsdatum || '',
+        titelArt: titelArtMap[data.titelArt] || 'Sonstig',
+        titelGericht: data.titelGericht,
+        titelGZ: data.titelGZ,
+        titelDatum: data.titelDatum,
+        vollstreckbarkeitDatum: data.vollstreckbarkeitDatum,
+        kapitalforderung: data.kapitalforderung,
+        zinsenProzent: data.zinsenProzent,
+        zinsenBasis: data.kapitalforderung,
+        zinsenAb: data.zinsenAb,
+        kostenAusTitel: data.kosten,
+        fruehereKosten: [],
+      },
+    }));
+
+    // Kanzleidaten auch persistent speichern wenn extrahiert
+    if (data.kanzleiName) {
+      saveKanzleiData({
+        kanzleiName: data.kanzleiName,
+        kanzleiStrasse: data.kanzleiStrasse || '',
+        kanzleiPlz: data.kanzleiPlz || '',
+        kanzleiOrt: data.kanzleiOrt || '',
+      });
+    }
+
+    // BMGL aus Kapitalforderung setzen
+    setBmgl(data.kapitalforderung);
+  };
+
+  // Handler zum Löschen aller Exekutionsdaten
+  const handleClearExekutionData = () => {
+    setCaseMetadata(prev => ({
+      ...prev,
+      geschaeftszahl: '',
+      gericht: '',
+      parteiName: '',
+      parteiStrasse: '',
+      parteiPlz: '',
+      parteiOrt: '',
+      parteiLand: '',
+      exekution: undefined,
+    }));
+    setBmgl(0);
   };
 
   // State aus aktiver Kostennote laden
@@ -413,19 +505,46 @@ const App: React.FC = () => {
     };
   }, [services, bmgl, additionalParties, autoGgg, procedureType]);
 
+  // Vollzugsgebühren § 455 EO (nur bei Exekutionsverfahren)
+  const vollzugsgebuehrenTotal = useMemo(() => {
+    if (procedureType !== ProcedureType.EXEKUTION) return { totalCents: 0, items: [] };
+    const items: { label: string; amountCents: number }[] = [];
+    let total = 0;
+    for (const s of services) {
+      if (s.vollzugsgebuehr && s.vollzugsgebuehr !== 'KEINE') {
+        const info = getVollzugsgebuehr(s.vollzugsgebuehr);
+        items.push({ label: `${info.shortLabel} (${info.paragraph})`, amountCents: info.amountCents });
+        total += info.amountCents;
+      }
+    }
+    return { totalCents: total, items };
+  }, [services, procedureType]);
+
   // --- Handlers ---
   const addService = (entry: any) => {
     const isHearing = entry.type.includes('HEARING');
     const isTP5or6or8or9 = ['TP5', 'TP6', 'TP8', 'TP9'].includes(entry.tp);
     const isTP7 = entry.tp === 'TP7';
-    // ES-Defaults: TP5,6,8,9 = 0 (kein ES), TP7 = max 1 (einfach), andere = 2 (doppelt)
-    const defaultEsMultiplier = isTP5or6or8or9 ? 0 : (isTP7 ? 1 : ((entry.type === ServiceType.PLEADING_TP3A_I || entry.type === ServiceType.PLEADING_TP3B || isHearing) ? 2 : 1));
+    // ES-Defaults: Katalog-Default, sonst TP5,6,8,9 = 0 (kein ES), TP7 = max 1 (einfach), TP3A/B/Hearing = 2, andere = 1
+    const catalogDefaultEs = entry.defaultEsMultiplier;
+    const defaultEsMultiplier = catalogDefaultEs !== undefined
+      ? catalogDefaultEs
+      : (isTP5or6or8or9 ? 0 : (isTP7 ? 1 : ((entry.type === ServiceType.PLEADING_TP3A_I || entry.type === ServiceType.PLEADING_TP3B || isHearing) ? 2 : 1)));
+
+    // Default-Vollzugsgebühr basierend auf Exekutionstyp (§ 455 EO)
+    let defaultVollzugsgebuehr: import('./lib/vollzugsgebuehren').VollzugsgebuehrType | undefined;
+    if (entry.id === 'ex_fahrnisex') defaultVollzugsgebuehr = 'FAHRNISEXEKUTION';
+    else if (entry.id === 'ex_forderungsex') defaultVollzugsgebuehr = 'FORDERUNGSEXEKUTION';
+    else if (entry.id === 'ex_zwangsversteigerung') defaultVollzugsgebuehr = 'ZWANGSVERSTEIGERUNG';
+    else if (entry.id === 'ex_zwangsverwaltung') defaultVollzugsgebuehr = 'ZWANGSVERWALTUNG';
+
     const newService: LegalService = {
       id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       label: entry.short,
       type: entry.type,
       tp: entry.tp, // Tarifpost aus Katalog
+      catalogId: entry.id, // Katalog-ID für Vollzugsgebühr-Erkennung
       // Bei HEARINGs: durationHours = Anzahl halbe Stunden (2 = 1 Stunde), sonst 1
       durationHours: isHearing ? 2 : 1,
       esMultiplier: defaultEsMultiplier,
@@ -434,6 +553,7 @@ const App: React.FC = () => {
       waitingUnits: 0,
       isAuswaerts: false,
       isRaRaaErforderlich: isTP7 ? true : undefined, // TP7: Default = RA/RAA erforderlich (TP 7/2)
+      vollzugsgebuehr: defaultVollzugsgebuehr,
     };
     setServices([...services, newService]);
     setShowCatalog(false);
@@ -802,6 +922,8 @@ const App: React.FC = () => {
         vstrafStufeLabel: VSTRAF_STUFE_LABELS[vstrafStufe],
         vstrafVerfallswert: vstrafVerfallswert,
         caseMetadata: caseMetadata,
+        exekutionMetadata: caseMetadata.exekution,
+        printOptions: printOptions,
       }
     );
   };
@@ -938,11 +1060,23 @@ const App: React.FC = () => {
           />
         ) : (
           <>
+            {/* Exekutionstitel Upload (nur bei Exekutionsverfahren) */}
+            {procedureType === ProcedureType.EXEKUTION && (
+              <ExekutionUpload
+                apiKey={process.env.OPENROUTER_API_KEY || ''}
+                onDataExtracted={handleExekutionDataExtracted}
+              />
+            )}
+
             {/* Falldaten-Formular */}
             <CaseMetadataForm
               metadata={caseMetadata}
               onChange={setCaseMetadata}
               onKanzleiChange={handleKanzleiChange}
+              procedureType={procedureType}
+              onClearExekution={procedureType === ProcedureType.EXEKUTION ? handleClearExekutionData : undefined}
+              printOptions={printOptions}
+              onPrintOptionsChange={setPrintOptions}
             />
 
             <div className="grid gap-8 lg:grid-cols-12">
@@ -1617,11 +1751,14 @@ const App: React.FC = () => {
                                 <button
                                   key={cat.id}
                                   onClick={() => {
+                                    // Default ES: aus Katalog oder nach Typ (TP3A, TP3B, HEARING = doppelt)
+                                    const defaultEs = cat.defaultEsMultiplier ?? ((cat.type === ServiceType.PLEADING_TP3A_I || cat.type === ServiceType.PLEADING_TP3B || cat.type.includes('HEARING')) ? 2 : 1);
                                     updateService(s.id, {
                                       label: cat.short,
                                       type: cat.type,
-                                      esMultiplier: (cat.type === ServiceType.PLEADING_TP3A_I || cat.type === ServiceType.PLEADING_TP3B || cat.type.includes('HEARING')) ? 2 : 1,
-                                      includeErv: cat.type.startsWith('PLEADING')
+                                      esMultiplier: defaultEs,
+                                      includeErv: cat.type.startsWith('PLEADING'),
+                                      catalogId: cat.id
                                     });
                                     setOpenServiceDropdown(null);
                                   }}
@@ -1641,11 +1778,13 @@ const App: React.FC = () => {
                                 <button
                                   key={cat.id}
                                   onClick={() => {
+                                    const defaultEs = cat.defaultEsMultiplier ?? ((cat.type === ServiceType.PLEADING_TP3A_I || cat.type === ServiceType.PLEADING_TP3B || cat.type.includes('HEARING')) ? 2 : 1);
                                     updateService(s.id, {
                                       label: cat.short,
                                       type: cat.type,
-                                      esMultiplier: (cat.type === ServiceType.PLEADING_TP3A_I || cat.type === ServiceType.PLEADING_TP3B || cat.type.includes('HEARING')) ? 2 : 1,
-                                      includeErv: cat.type.startsWith('PLEADING')
+                                      esMultiplier: defaultEs,
+                                      includeErv: cat.type.startsWith('PLEADING'),
+                                      catalogId: cat.id
                                     });
                                     setOpenServiceDropdown(null);
                                   }}
@@ -1665,11 +1804,13 @@ const App: React.FC = () => {
                                 <button
                                   key={cat.id}
                                   onClick={() => {
+                                    const defaultEs = cat.defaultEsMultiplier ?? ((cat.type === ServiceType.PLEADING_TP3A_I || cat.type === ServiceType.PLEADING_TP3B || cat.type.includes('HEARING')) ? 2 : 1);
                                     updateService(s.id, {
                                       label: cat.short,
                                       type: cat.type,
-                                      esMultiplier: (cat.type === ServiceType.PLEADING_TP3A_I || cat.type === ServiceType.PLEADING_TP3B || cat.type.includes('HEARING')) ? 2 : 1,
-                                      includeErv: cat.type.startsWith('PLEADING')
+                                      esMultiplier: defaultEs,
+                                      includeErv: cat.type.startsWith('PLEADING'),
+                                      catalogId: cat.id
                                     });
                                     setOpenServiceDropdown(null);
                                   }}
@@ -2163,6 +2304,34 @@ const App: React.FC = () => {
                                   );
                                 })}
                               </div>
+                            </div>
+                          )}
+
+                          {/* Vollzugsgebühr § 455 EO (nur bei Exekutionsverfahren) */}
+                          {procedureType === ProcedureType.EXEKUTION && s.catalogId?.startsWith('ex_') && (
+                            <div className="space-y-2">
+                              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
+                                <Gavel className="h-3.5 w-3.5" /> Vollzugsgebühr (§ 455 EO)
+                              </span>
+                              <select
+                                value={s.vollzugsgebuehr || 'KEINE'}
+                                onChange={(e) => updateService(s.id, { vollzugsgebuehr: e.target.value as VollzugsgebuehrType })}
+                                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-sm font-medium"
+                              >
+                                {VOLLZUGSGEBUEHR_OPTIONS.map(opt => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label} {opt.amount && `(${opt.amount})`}
+                                  </option>
+                                ))}
+                              </select>
+                              {s.vollzugsgebuehr && s.vollzugsgebuehr !== 'KEINE' && (
+                                <div className="flex justify-between items-center p-2 bg-amber-50 rounded-lg border border-amber-200">
+                                  <span className="text-xs text-amber-700">Vollzugsgebühr</span>
+                                  <span className="font-mono text-xs font-bold text-amber-700">
+                                    {formatEuro(getVollzugsgebuehr(s.vollzugsgebuehr).amountCents)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -4401,12 +4570,32 @@ const App: React.FC = () => {
                                 </span>
                               </td>
                               <td className="py-4 text-center">
-                                <button
-                                  onClick={() => setActiveInfo(line)}
-                                  className="p-1.5 rounded-lg hover:bg-blue-500/20 text-blue-400 transition-all"
-                                >
-                                  <Info className="h-4 w-4" />
-                                </button>
+                                <div className="relative inline-flex justify-center">
+                                  <button
+                                    onClick={() => setActiveInfo(line)}
+                                    className="peer p-1 rounded-lg hover:bg-blue-500/20 text-blue-400 cursor-help transition-all"
+                                  >
+                                    <Info className="h-4 w-4" />
+                                  </button>
+                                  {/* Hover Tooltip - Kurzinfo (unten bei oberen Zeilen, oben bei unteren Zeilen) */}
+                                  <div className={`absolute right-0 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible transition-all duration-150 bg-slate-950 border border-blue-400/50 rounded-xl p-3 shadow-2xl z-50 min-w-[180px] pointer-events-none ${i >= results.lines.length - 2 ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+                                    <div className="space-y-2 text-left">
+                                      <div>
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">BMGL</div>
+                                        <div className="text-xs font-mono text-amber-400">{formatEuro(line.bmglCents)}</div>
+                                      </div>
+                                      <div>
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Norm</div>
+                                        <div className="text-xs font-mono text-blue-300">{line.section}</div>
+                                      </div>
+                                      <div>
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Netto</div>
+                                        <div className="text-sm font-mono font-bold text-white">{formatEuro(line.amountCents)}</div>
+                                      </div>
+                                      <div className="text-[9px] text-slate-500 italic pt-1 border-t border-white/10">Klick für Details</div>
+                                    </div>
+                                  </div>
+                                </div>
                               </td>
                               <td className="py-4 pr-2 text-right font-bold text-white font-mono">
                                 {formatEuro(line.amountCents)}
@@ -4447,25 +4636,70 @@ const App: React.FC = () => {
                 <div className="flex justify-between items-center px-4">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black uppercase text-slate-400 tracking-widest">Pauschalgebühren (GGG)</span>
-                    <button
-                      onClick={() => {
-                        const gggLine = results.lines.find(l => l.section.includes("GGG"));
-                        if (gggLine) setActiveInfo(gggLine);
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-blue-500/20 text-blue-400 transition-all"
-                    >
-                      <Info className="h-4 w-4" />
-                    </button>
+                    {(() => {
+                      const gggLine = results.lines.find(l => l.section.includes("GGG"));
+                      if (!gggLine) return null;
+                      return (
+                        <div className="relative inline-flex">
+                          <button
+                            onClick={() => setActiveInfo(gggLine)}
+                            className="peer p-1 rounded-lg hover:bg-blue-500/20 text-blue-400 cursor-help transition-all"
+                          >
+                            <Info className="h-4 w-4" />
+                          </button>
+                          {/* Hover Tooltip - Kurzinfo (nach oben, da am unteren Bereich) */}
+                          <div className="absolute bottom-full left-0 mb-1 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible transition-all duration-150 bg-slate-950 border border-blue-400/50 rounded-xl p-3 shadow-2xl z-50 min-w-[180px] pointer-events-none">
+                            <div className="space-y-2 text-left">
+                              <div>
+                                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">BMGL</div>
+                                <div className="text-xs font-mono text-amber-400">{formatEuro(gggLine.bmglCents)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tarifpost</div>
+                                <div className="text-xs font-mono text-blue-300">{gggLine.section}</div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Gebühr</div>
+                                <div className="text-sm font-mono font-bold text-white">{formatEuro(gggLine.amountCents)}</div>
+                              </div>
+                              <div className="text-[9px] text-slate-500 italic pt-1 border-t border-white/10">Klick für Details</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <span className="font-bold text-blue-400 text-lg font-mono">{formatEuro(results.gggCents)}</span>
                 </div>
+
+                {/* Vollzugsgebühren § 455 EO (nur bei Exekutionsverfahren) */}
+                {vollzugsgebuehrenTotal.totalCents > 0 && (
+                  <div className="flex justify-between items-center px-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase text-amber-400 tracking-widest">Vollzugsgebühren (§ 455 EO)</span>
+                      <div className="relative inline-flex">
+                        <Info className="h-4 w-4 text-amber-400 cursor-help peer" />
+                        <div className="absolute bottom-full left-0 mb-1 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible transition-all duration-150 bg-slate-950 border border-amber-400/50 rounded-xl p-3 shadow-2xl z-50 min-w-[200px] pointer-events-none">
+                          <div className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2">Vollzugsgebühren</div>
+                          {vollzugsgebuehrenTotal.items.map((item, i) => (
+                            <div key={i} className="flex justify-between text-xs text-slate-300">
+                              <span>{item.label}</span>
+                              <span className="font-mono">{formatEuro(item.amountCents)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="font-bold text-amber-400 text-lg font-mono">{formatEuro(vollzugsgebuehrenTotal.totalCents)}</span>
+                  </div>
+                )}
 
                 {/* Grand Total */}
                 <div className="relative p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-600/40 to-slate-900 border border-blue-400/40 flex justify-between items-center shadow-2xl mt-8 overflow-hidden group">
                   <div className="absolute inset-0 bg-blue-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-300 block mb-1">Gesamtsumme Brutto</span>
-                    <span className="text-5xl font-black text-white tracking-tighter font-mono drop-shadow-[0_0_15px_rgba(96,165,250,0.3)]">{formatEuro(results.totalCents)}</span>
+                    <span className="text-5xl font-black text-white tracking-tighter font-mono drop-shadow-[0_0_15px_rgba(96,165,250,0.3)]">{formatEuro(results.totalCents + vollzugsgebuehrenTotal.totalCents)}</span>
                   </div>
                   <button
                     onClick={handleDownload}

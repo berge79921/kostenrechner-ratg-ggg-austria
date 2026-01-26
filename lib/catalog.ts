@@ -12,6 +12,7 @@ export interface CatalogEntry {
   category: CatalogCategory;
   tp: string; // TP1, TP2, TP3A, etc.
   procedureTypes?: ProcedureType[]; // Für welche Verfahrensarten gilt dieser Eintrag? Leer = alle
+  defaultEsMultiplier?: number; // Default ES: 1 = einfach, 2 = doppelt. Wenn nicht gesetzt, wird nach Typ bestimmt
 }
 
 export const CATEGORY_LABELS: Record<CatalogCategory, string> = {
@@ -77,28 +78,30 @@ export const SERVICE_CATALOG: CatalogEntry[] = [
   // ═══════════════════════════════════════════════════════════════════════════
 
   // --- 1. Instanz (GGG TP 4 Z I) ---
-  { id: 'ex_antrag', type: ServiceType.PLEADING_TP2, short: 'Exekutionsantrag', full: 'GGG TP 4 Z I - Exekutionsantrag', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_fahrnisex', type: ServiceType.PLEADING_TP2, short: 'Fahrnisexekution', full: 'GGG TP 4 Z I - Fahrnisexekution § 249 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_forderungsex', type: ServiceType.PLEADING_TP2, short: 'Forderungsexekution', full: 'GGG TP 4 Z I - Forderungsexekution § 294 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_zwangsversteigerung', type: ServiceType.PLEADING_TP3A_I, short: 'Zwangsversteigerung', full: 'GGG TP 4 Z I - Zwangsversteigerung §§ 133 ff EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_zwangsverwaltung', type: ServiceType.PLEADING_TP3A_I, short: 'Zwangsverwaltung', full: 'GGG TP 4 Z I - Zwangsverwaltung §§ 97 ff EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_widerspruch', type: ServiceType.PLEADING_TP3A_I, short: 'Widerspruch § 37 EO', full: 'GGG TP 4 Z I - Widerspruch § 37 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_impugnation', type: ServiceType.PLEADING_TP3A_I, short: 'Impugnationsklage § 36 EO', full: 'GGG TP 4 Z I - Impugnationsklage § 36 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_opposition', type: ServiceType.PLEADING_TP3A_I, short: 'Oppositionsklage § 35 EO', full: 'GGG TP 4 Z I - Oppositionsklage § 35 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_einwendungen', type: ServiceType.PLEADING_TP2, short: 'Einwendungen', full: 'GGG TP 4 Z I - Einwendungen gegen Exekution', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_aeusserung', type: ServiceType.PLEADING_TP2, short: 'Äußerung zu Einwendungen', full: 'GGG TP 4 Z I - Äußerung zu Einwendungen', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  // Exekutionsantrag und Einwendungen (erstinstanzliches Rechtsmittel) = doppelt ES per Default
+  { id: 'ex_antrag', type: ServiceType.PLEADING_TP2, short: 'Exekutionsantrag', full: 'GGG TP 4 Z I - Exekutionsantrag', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_fahrnisex', type: ServiceType.PLEADING_TP2, short: 'Fahrnisexekution', full: 'GGG TP 4 Z I - Fahrnisexekution § 249 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_forderungsex', type: ServiceType.PLEADING_TP2, short: 'Forderungsexekution', full: 'GGG TP 4 Z I - Forderungsexekution § 294 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_zwangsversteigerung', type: ServiceType.PLEADING_TP3A_I, short: 'Zwangsversteigerung', full: 'GGG TP 4 Z I - Zwangsversteigerung §§ 133 ff EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_zwangsverwaltung', type: ServiceType.PLEADING_TP3A_I, short: 'Zwangsverwaltung', full: 'GGG TP 4 Z I - Zwangsverwaltung §§ 97 ff EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_widerspruch', type: ServiceType.PLEADING_TP3A_I, short: 'Widerspruch § 37 EO', full: 'GGG TP 4 Z I - Widerspruch § 37 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_impugnation', type: ServiceType.PLEADING_TP3A_I, short: 'Impugnationsklage § 36 EO', full: 'GGG TP 4 Z I - Impugnationsklage § 36 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_opposition', type: ServiceType.PLEADING_TP3A_I, short: 'Oppositionsklage § 35 EO', full: 'GGG TP 4 Z I - Oppositionsklage § 35 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  // Einwendungen § 68 EO = erstinstanzliches Rechtsmittel gegen Exekutionsbewilligung = doppelt ES
+  { id: 'ex_einwendungen', type: ServiceType.PLEADING_TP2, short: 'Einwendungen § 68 EO', full: 'GGG TP 4 Z I - Einwendungen gegen Exekutionsbewilligung', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_aeusserung', type: ServiceType.PLEADING_TP2, short: 'Äußerung zu Einwendungen', full: 'GGG TP 4 Z I - Äußerung zu Einwendungen', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
   { id: 'ex_vollzugsantrag', type: ServiceType.PLEADING_TP1, short: 'Vollzugsantrag § 249a EO', full: 'GGG TP 4 Z I - Vollzugsantrag § 249a EO', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.EXEKUTION] },
   { id: 'ex_einstellung', type: ServiceType.PLEADING_TP1, short: 'Einstellungsantrag', full: 'GGG TP 4 Z I - Einstellung / Einschränkung', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_aufschiebung', type: ServiceType.PLEADING_TP2, short: 'Aufschiebungsantrag § 42 EO', full: 'GGG TP 4 Z I - Aufschiebungsantrag § 42 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_aufschiebung', type: ServiceType.PLEADING_TP2, short: 'Aufschiebungsantrag § 42 EO', full: 'GGG TP 4 Z I - Aufschiebungsantrag § 42 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
   { id: 'ex_drittschuldner', type: ServiceType.PLEADING_TP2, short: 'Drittschuldnererklärung', full: 'GGG TP 4 Z I - Drittschuldnererklärung', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
 
-  // --- 2. Instanz (GGG TP 4 Z II) ---
-  { id: 'ex_rekurs', type: ServiceType.PLEADING_TP3B, short: 'Rekurs (Exekution)', full: 'GGG TP 4 Z II - Rekurs im Exekutionsverfahren', category: 'SCHRIFTSAETZE', tp: 'TP3B', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_rekursbeantwortung', type: ServiceType.PLEADING_TP3B, short: 'Rekursbeantwortung (Exek.)', full: 'GGG TP 4 Z II - Rekursbeantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3B', procedureTypes: [ProcedureType.EXEKUTION] },
+  // --- 2. Instanz (GGG TP 4 Z II) - Rechtsmittel = doppelt ES ---
+  { id: 'ex_rekurs', type: ServiceType.PLEADING_TP3B, short: 'Rekurs (Exekution)', full: 'GGG TP 4 Z II - Rekurs im Exekutionsverfahren', category: 'SCHRIFTSAETZE', tp: 'TP3B', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_rekursbeantwortung', type: ServiceType.PLEADING_TP3B, short: 'Rekursbeantwortung (Exek.)', full: 'GGG TP 4 Z II - Rekursbeantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3B', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
 
-  // --- 3. Instanz (GGG TP 4 Z III) ---
-  { id: 'ex_revisionsrekurs', type: ServiceType.PLEADING_TP3C, short: 'Revisionsrekurs (Exekution)', full: 'GGG TP 4 Z III - Revisionsrekurs', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.EXEKUTION] },
-  { id: 'ex_revisionsrekurs_beantwortung', type: ServiceType.PLEADING_TP3C, short: 'Revisionsrekursbeantw. (Exek.)', full: 'GGG TP 4 Z III - Revisionsrekursbeantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.EXEKUTION] },
+  // --- 3. Instanz (GGG TP 4 Z III) - Rechtsmittel = doppelt ES ---
+  { id: 'ex_revisionsrekurs', type: ServiceType.PLEADING_TP3C, short: 'Revisionsrekurs (Exekution)', full: 'GGG TP 4 Z III - Revisionsrekurs', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
+  { id: 'ex_revisionsrekurs_beantwortung', type: ServiceType.PLEADING_TP3C, short: 'Revisionsrekursbeantw. (Exek.)', full: 'GGG TP 4 Z III - Revisionsrekursbeantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.EXEKUTION], defaultEsMultiplier: 2 },
 
   // ═══════════════════════════════════════════════════════════════════════════
 

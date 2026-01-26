@@ -71,6 +71,8 @@ function serializeService(s: LegalService): string {
     s.is473aZPO ? '1' : '0',
     s.isRaRaaErforderlich ? '1' : '0',
     s.tp ?? '',
+    s.catalogId ?? '',
+    s.vollzugsgebuehr ?? '',
   ].join(';');
 }
 
@@ -133,12 +135,37 @@ export function exportToCSV(state: ExportState): string {
   // Metadata
   const metaFields = [
     'geschaeftszahl', 'gericht',
-    'parteiName', 'parteiStrasse', 'parteiPlz', 'parteiOrt',
+    'parteiName', 'parteiStrasse', 'parteiPlz', 'parteiOrt', 'parteiLand',
     'kanzleiName', 'kanzleiStrasse', 'kanzleiPlz', 'kanzleiOrt',
     'erstelltAm', 'version'
   ] as const;
   for (const key of metaFields) {
-    lines.push(`META;${key};${escapeCSV(state.metadata[key])}`);
+    lines.push(`META;${key};${escapeCSV(state.metadata[key] || '')}`);
+  }
+
+  // Exekution-Metadaten (falls vorhanden)
+  const exek = state.metadata.exekution;
+  if (exek) {
+    lines.push(`EXEKUTION;verpflichteterName;${escapeCSV(exek.verpflichteterName)}`);
+    lines.push(`EXEKUTION;verpflichteterStrasse;${escapeCSV(exek.verpflichteterStrasse)}`);
+    lines.push(`EXEKUTION;verpflichteterPlz;${escapeCSV(exek.verpflichteterPlz)}`);
+    lines.push(`EXEKUTION;verpflichteterOrt;${escapeCSV(exek.verpflichteterOrt)}`);
+    lines.push(`EXEKUTION;verpflichteterLand;${escapeCSV(exek.verpflichteterLand)}`);
+    lines.push(`EXEKUTION;verpflichteterGeburtsdatum;${escapeCSV(exek.verpflichteterGeburtsdatum)}`);
+    lines.push(`EXEKUTION;titelArt;${escapeCSV(exek.titelArt)}`);
+    lines.push(`EXEKUTION;titelGericht;${escapeCSV(exek.titelGericht)}`);
+    lines.push(`EXEKUTION;titelGZ;${escapeCSV(exek.titelGZ)}`);
+    lines.push(`EXEKUTION;titelDatum;${escapeCSV(exek.titelDatum)}`);
+    lines.push(`EXEKUTION;vollstreckbarkeitDatum;${escapeCSV(exek.vollstreckbarkeitDatum)}`);
+    lines.push(`EXEKUTION;kapitalforderung;${exek.kapitalforderung}`);
+    lines.push(`EXEKUTION;zinsenProzent;${exek.zinsenProzent}`);
+    lines.push(`EXEKUTION;zinsenBasis;${exek.zinsenBasis}`);
+    lines.push(`EXEKUTION;zinsenAb;${escapeCSV(exek.zinsenAb)}`);
+    lines.push(`EXEKUTION;kostenAusTitel;${exek.kostenAusTitel}`);
+    // fruehereKosten als JSON
+    if (exek.fruehereKosten && exek.fruehereKosten.length > 0) {
+      lines.push(`EXEKUTION;fruehereKosten;${escapeCSV(JSON.stringify(exek.fruehereKosten))}`);
+    }
   }
 
   // Common state
@@ -219,12 +246,36 @@ function exportSingleKostennoteV2(k: SavedKostennote): string[] {
   // Metadata
   const metaFields = [
     'geschaeftszahl', 'gericht',
-    'parteiName', 'parteiStrasse', 'parteiPlz', 'parteiOrt',
+    'parteiName', 'parteiStrasse', 'parteiPlz', 'parteiOrt', 'parteiLand',
     'kanzleiName', 'kanzleiStrasse', 'kanzleiPlz', 'kanzleiOrt',
     'erstelltAm', 'version'
   ] as const;
   for (const key of metaFields) {
-    lines.push(`META;${key};${escapeCSV(k.metadata[key])}`);
+    lines.push(`META;${key};${escapeCSV(k.metadata[key] || '')}`);
+  }
+
+  // Exekution-Metadaten (falls vorhanden)
+  const exek = k.metadata.exekution;
+  if (exek) {
+    lines.push(`EXEKUTION;verpflichteterName;${escapeCSV(exek.verpflichteterName)}`);
+    lines.push(`EXEKUTION;verpflichteterStrasse;${escapeCSV(exek.verpflichteterStrasse)}`);
+    lines.push(`EXEKUTION;verpflichteterPlz;${escapeCSV(exek.verpflichteterPlz)}`);
+    lines.push(`EXEKUTION;verpflichteterOrt;${escapeCSV(exek.verpflichteterOrt)}`);
+    lines.push(`EXEKUTION;verpflichteterLand;${escapeCSV(exek.verpflichteterLand)}`);
+    lines.push(`EXEKUTION;verpflichteterGeburtsdatum;${escapeCSV(exek.verpflichteterGeburtsdatum)}`);
+    lines.push(`EXEKUTION;titelArt;${escapeCSV(exek.titelArt)}`);
+    lines.push(`EXEKUTION;titelGericht;${escapeCSV(exek.titelGericht)}`);
+    lines.push(`EXEKUTION;titelGZ;${escapeCSV(exek.titelGZ)}`);
+    lines.push(`EXEKUTION;titelDatum;${escapeCSV(exek.titelDatum)}`);
+    lines.push(`EXEKUTION;vollstreckbarkeitDatum;${escapeCSV(exek.vollstreckbarkeitDatum)}`);
+    lines.push(`EXEKUTION;kapitalforderung;${exek.kapitalforderung}`);
+    lines.push(`EXEKUTION;zinsenProzent;${exek.zinsenProzent}`);
+    lines.push(`EXEKUTION;zinsenBasis;${exek.zinsenBasis}`);
+    lines.push(`EXEKUTION;zinsenAb;${escapeCSV(exek.zinsenAb)}`);
+    lines.push(`EXEKUTION;kostenAusTitel;${exek.kostenAusTitel}`);
+    if (exek.fruehereKosten && exek.fruehereKosten.length > 0) {
+      lines.push(`EXEKUTION;fruehereKosten;${escapeCSV(JSON.stringify(exek.fruehereKosten))}`);
+    }
   }
 
   const s = k.state;

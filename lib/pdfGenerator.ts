@@ -1,7 +1,14 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { TotalResult, ProcedureType, CaseMode, CaseMetadata } from '../types';
+import { TotalResult, ProcedureType, CaseMode, CaseMetadata, ExekutionMetadata } from '../types';
 import { formatEuro } from './calculator';
+
+// Druckoptionen für PDF-Export
+export interface PrintOptions {
+  printTiteldaten: boolean;
+  printExekutionsdaten: boolean;
+  printKanzlei: boolean;
+}
 
 export interface PDFOptions {
   results: TotalResult;
@@ -23,6 +30,10 @@ export interface PDFOptions {
   vstrafVerfallswert?: number;
   // Falldaten für Header
   caseMetadata?: CaseMetadata;
+  // Exekution-Daten
+  exekutionMetadata?: ExekutionMetadata;
+  // Druckoptionen
+  printOptions?: PrintOptions;
 }
 
 export function generateKostenverzeichnisPDF(
@@ -38,6 +49,7 @@ export function generateKostenverzeichnisPDF(
   const pageWidth = doc.internal.pageSize.getWidth();
   const caseMode = options?.caseMode ?? CaseMode.CIVIL;
   const meta = options?.caseMetadata;
+  const print = options?.printOptions || { printTiteldaten: true, printExekutionsdaten: true, printKanzlei: true };
 
   let yPos = 20;
 
@@ -48,7 +60,7 @@ export function generateKostenverzeichnisPDF(
     doc.text('KOSTENVERZEICHNIS', pageWidth / 2, yPos, { align: 'center' });
     yPos += 10;
 
-    // Geschäftszahl und Datum
+    // Geschäftszahl und Datum (immer drucken wenn vorhanden)
     doc.setFontSize(10);
     if (meta.geschaeftszahl) {
       doc.text(`GZ: ${meta.geschaeftszahl}`, 14, yPos);
@@ -57,37 +69,41 @@ export function generateKostenverzeichnisPDF(
     doc.text(`Datum: ${new Date().toLocaleDateString('de-AT')}`, pageWidth - 14, yPos, { align: 'right' });
     yPos += 6;
 
-    // Gericht
+    // Gericht (immer drucken wenn vorhanden)
     if (meta.gericht) {
       doc.text(`Gericht: ${meta.gericht}`, 14, yPos);
       yPos += 8;
     }
 
-    // Zwei-Spalten: Partei / Kanzlei
-    if (meta.parteiName || meta.kanzleiName) {
+    // Zwei-Spalten: Partei / Kanzlei - nur wenn entsprechende Druckoption aktiv
+    const showPartei = print.printTiteldaten && meta.parteiName;
+    const showKanzlei = print.printKanzlei && meta.kanzleiName;
+
+    if (showPartei || showKanzlei) {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('Partei:', 14, yPos);
-      doc.text('Vertreten durch:', pageWidth / 2 + 5, yPos);
+      if (showPartei) doc.text('Partei:', 14, yPos);
+      if (showKanzlei) doc.text('Vertreten durch:', pageWidth / 2 + 5, yPos);
       yPos += 5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
 
       // Partei
-      if (meta.parteiName) doc.text(meta.parteiName, 14, yPos);
+      if (showPartei && meta.parteiName) doc.text(meta.parteiName, 14, yPos);
       // Kanzlei
-      if (meta.kanzleiName) doc.text(meta.kanzleiName, pageWidth / 2 + 5, yPos);
+      if (showKanzlei && meta.kanzleiName) doc.text(meta.kanzleiName, pageWidth / 2 + 5, yPos);
       yPos += 5;
 
-      if (meta.parteiStrasse) doc.text(meta.parteiStrasse, 14, yPos);
-      if (meta.kanzleiStrasse) doc.text(meta.kanzleiStrasse, pageWidth / 2 + 5, yPos);
+      if (showPartei && meta.parteiStrasse) doc.text(meta.parteiStrasse, 14, yPos);
+      if (showKanzlei && meta.kanzleiStrasse) doc.text(meta.kanzleiStrasse, pageWidth / 2 + 5, yPos);
       yPos += 5;
 
       const parteiOrt = [meta.parteiPlz, meta.parteiOrt].filter(Boolean).join(' ');
+      const parteiOrtMitLand = meta.parteiLand ? `${parteiOrt} (${meta.parteiLand})` : parteiOrt;
       const kanzleiOrt = [meta.kanzleiPlz, meta.kanzleiOrt].filter(Boolean).join(' ');
-      if (parteiOrt) doc.text(parteiOrt, 14, yPos);
-      if (kanzleiOrt) doc.text(kanzleiOrt, pageWidth / 2 + 5, yPos);
+      if (showPartei && parteiOrt) doc.text(parteiOrtMitLand, 14, yPos);
+      if (showKanzlei && kanzleiOrt) doc.text(kanzleiOrt, pageWidth / 2 + 5, yPos);
       yPos += 8;
     }
 
@@ -95,6 +111,87 @@ export function generateKostenverzeichnisPDF(
     doc.setDrawColor(200);
     doc.line(14, yPos, pageWidth - 14, yPos);
     yPos += 8;
+
+    // --- Exekution-spezifische Daten (nur wenn printExekutionsdaten aktiv) ---
+    const exek = options?.exekutionMetadata;
+    if (exek && procedureType === ProcedureType.EXEKUTION && print.printExekutionsdaten) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Verpflichtete Partei:', 14, yPos);
+      doc.text('Exekutionstitel:', pageWidth / 2 + 5, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+
+      // Verpflichtete Partei - Name
+      if (exek.verpflichteterName) doc.text(exek.verpflichteterName, 14, yPos);
+      // Titel - Art + Gericht (mit Umbruch wenn zu lang)
+      const titelArtGericht = [exek.titelArt, exek.titelGericht].filter(Boolean).join(' ');
+      let titelExtraLines = 0;
+      if (titelArtGericht) {
+        const maxWidth = pageWidth - 14 - (pageWidth / 2 + 5); // verfügbare Breite rechte Spalte
+        const titelLines = doc.splitTextToSize(titelArtGericht, maxWidth);
+        doc.text(titelLines, pageWidth / 2 + 5, yPos);
+        titelExtraLines = titelLines.length - 1; // Anzahl zusätzlicher Zeilen
+      }
+      yPos += 5;
+
+      // Verpflichtete Partei - Straße
+      if (exek.verpflichteterStrasse) doc.text(exek.verpflichteterStrasse, 14, yPos);
+      // Falls Titel mehrzeilig war, Platz lassen
+      if (titelExtraLines > 0) {
+        yPos += titelExtraLines * 5;
+      }
+      // Titel - GZ
+      if (exek.titelGZ) doc.text(exek.titelGZ, pageWidth / 2 + 5, yPos);
+      yPos += 5;
+
+      // Verpflichtete Partei - PLZ/Ort
+      const verpfOrt = [exek.verpflichteterPlz, exek.verpflichteterOrt].filter(Boolean).join(' ');
+      if (verpfOrt) {
+        const ortMitLand = exek.verpflichteterLand ? `${verpfOrt} (${exek.verpflichteterLand})` : verpfOrt;
+        doc.text(ortMitLand, 14, yPos);
+      }
+      // Titel - Datum
+      if (exek.titelDatum) doc.text(`vom ${exek.titelDatum}`, pageWidth / 2 + 5, yPos);
+      yPos += 5;
+
+      // Verpflichtete Partei - Geburtsdatum
+      if (exek.verpflichteterGeburtsdatum) {
+        doc.text(`geb. ${exek.verpflichteterGeburtsdatum}`, 14, yPos);
+      }
+      // Titel - Vollstreckbarkeit
+      if (exek.vollstreckbarkeitDatum) {
+        doc.text(`vollstreckbar seit ${exek.vollstreckbarkeitDatum}`, pageWidth / 2 + 5, yPos);
+      }
+      yPos += 5;
+
+      // Forderung
+      yPos += 2;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Forderung aus Titel:', 14, yPos);
+      yPos += 5;
+      doc.setFont('helvetica', 'normal');
+
+      const kapitalText = exek.kapitalforderung > 0 ? formatEuro(exek.kapitalforderung * 100) : '';
+      const zinsenText = exek.zinsenProzent > 0 && exek.zinsenAb
+        ? ` + ${exek.zinsenProzent}% Zinsen seit ${exek.zinsenAb}`
+        : '';
+      if (kapitalText) doc.text(`Kapital: ${kapitalText}${zinsenText}`, 14, yPos);
+      yPos += 5;
+
+      if (exek.kostenAusTitel > 0) {
+        doc.text(`Kosten aus Titel: ${formatEuro(exek.kostenAusTitel * 100)}`, 14, yPos);
+        yPos += 5;
+      }
+
+      // Trennlinie nach Exekutionsdaten
+      yPos += 3;
+      doc.setDrawColor(200);
+      doc.line(14, yPos, pageWidth - 14, yPos);
+      yPos += 8;
+    }
   } else {
     // Standard-Header ohne Falldaten
     doc.setFont('helvetica', 'bold');
