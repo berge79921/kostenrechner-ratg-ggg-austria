@@ -384,9 +384,10 @@ const App: React.FC = () => {
       isVatFree,
       additionalParties,
       autoGgg,
-      isVerbandsklage
+      isVerbandsklage,
+      procedureType
     );
-  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag]);
+  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, procedureType, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag]);
 
   // --- Tariff Info ---
   const tariffInfo = useMemo(() => {
@@ -407,7 +408,7 @@ const App: React.FC = () => {
                                   additionalParties === 5 ? 30 :
                                   additionalParties >= 9 ? 50 : 0;
 
-    const derived = deriveGGGWithLabel(services);
+    const derived = deriveGGGWithLabel(services, procedureType);
     const result = getGGG(derived.tarifpost, bmgl * 100, partySurchargePercent);
 
     return {
@@ -416,7 +417,7 @@ const App: React.FC = () => {
       amount: result.total,
       bracketLabel: result.label
     };
-  }, [services, bmgl, additionalParties, autoGgg]);
+  }, [services, bmgl, additionalParties, autoGgg, procedureType]);
 
   // --- Handlers ---
   const addService = (entry: any) => {

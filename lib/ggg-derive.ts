@@ -1,9 +1,11 @@
 /**
  * GGG-Ableitung aus RATG-Leistungen
- * Bestimmt automatisch den passenden GGG-Tarifpost basierend auf der hoechsten Instanz.
+ * Bestimmt automatisch den passenden GGG-Tarifpost basierend auf:
+ * 1. Verfahrensart (Zivilprozess vs Exekutionsverfahren)
+ * 2. Hoechster Instanz der Leistungen
  */
 
-import { LegalService, ServiceType } from '../types';
+import { LegalService, ServiceType, ProcedureType } from '../types';
 import { GGGTarifpost, getGGG, GGGResult } from './ggg';
 
 export type DerivedInstanz = '1. Instanz' | '2. Instanz' | '3. Instanz';
@@ -15,35 +17,51 @@ export interface DerivedGGG {
 }
 
 /**
- * Leitet den GGG-Tarifpost aus den RATG-Leistungen ab.
- * Hoechste Instanz gewinnt: 3. Instanz (TP3C) > 2. Instanz (TP3B) > 1. Instanz (default)
+ * Leitet den GGG-Tarifpost aus den RATG-Leistungen und dem Verfahrenstyp ab.
+ *
+ * Zivilprozess/Außerstreit/Insolvenz:
+ *   3. Instanz (TP3C) → GGG TP 3 lit. a
+ *   2. Instanz (TP3B) → GGG TP 2
+ *   1. Instanz → GGG TP 1 Z I
+ *
+ * Exekutionsverfahren:
+ *   3. Instanz (TP3C) → GGG TP 4 Z III lit. a (200% von Z I)
+ *   2. Instanz (TP3B) → GGG TP 4 Z II lit. a (150% von Z I)
+ *   1. Instanz → GGG TP 4 Z I lit. a
  */
-export function deriveGGGTarifpost(services: LegalService[]): GGGTarifpost {
-  // 3. Instanz: TP3C -> GGG TP3 lit. a
+export function deriveGGGTarifpost(services: LegalService[], procedureType: ProcedureType = ProcedureType.ZIVILPROZESS): GGGTarifpost {
+  const isExekution = procedureType === ProcedureType.EXEKUTION || procedureType === ProcedureType.EXECUTION;
+
+  // 3. Instanz: TP3C
   const hasTP3C = services.some(s =>
     s.type === ServiceType.PLEADING_TP3C ||
     s.type === ServiceType.HEARING_TP3C_II ||
     s.type === ServiceType.HEARING_TP3C_III
   );
-  if (hasTP3C) return 'TP3_LIT_A';
+  if (hasTP3C) {
+    return isExekution ? 'TP4_ZIII_LIT_A' : 'TP3_LIT_A';
+  }
 
-  // 2. Instanz: TP3B -> GGG TP2
+  // 2. Instanz: TP3B
   const hasTP3B = services.some(s =>
     s.type === ServiceType.PLEADING_TP3B ||
     s.type === ServiceType.PLEADING_TP3B_IA ||
     s.type === ServiceType.HEARING_TP3B_II
   );
-  if (hasTP3B) return 'TP2';
+  if (hasTP3B) {
+    return isExekution ? 'TP4_ZII_LIT_A' : 'TP2';
+  }
 
-  // 1. Instanz (Default): -> GGG TP1 Z I
-  return 'TP1_ZI';
+  // 1. Instanz (Default)
+  return isExekution ? 'TP4_ZI_LIT_A' : 'TP1_ZI';
 }
 
 /**
- * Leitet den GGG-Tarifpost mit Label aus den RATG-Leistungen ab.
+ * Leitet den GGG-Tarifpost mit Label aus den RATG-Leistungen und Verfahrenstyp ab.
  */
-export function deriveGGGWithLabel(services: LegalService[]): DerivedGGG {
-  const tarifpost = deriveGGGTarifpost(services);
+export function deriveGGGWithLabel(services: LegalService[], procedureType: ProcedureType = ProcedureType.ZIVILPROZESS): DerivedGGG {
+  const tarifpost = deriveGGGTarifpost(services, procedureType);
+  const isExekution = procedureType === ProcedureType.EXEKUTION || procedureType === ProcedureType.EXECUTION;
 
   let instanz: DerivedInstanz;
   let label: string;
@@ -57,9 +75,21 @@ export function deriveGGGWithLabel(services: LegalService[]): DerivedGGG {
       instanz = '2. Instanz';
       label = 'TP 2';
       break;
+    case 'TP4_ZIII_LIT_A':
+      instanz = '3. Instanz';
+      label = 'TP 4 Z III lit. a';
+      break;
+    case 'TP4_ZII_LIT_A':
+      instanz = '2. Instanz';
+      label = 'TP 4 Z II lit. a';
+      break;
+    case 'TP4_ZI_LIT_A':
+      instanz = '1. Instanz';
+      label = 'TP 4 Z I lit. a';
+      break;
     default:
       instanz = '1. Instanz';
-      label = 'TP 1 Z I';
+      label = isExekution ? 'TP 4 Z I lit. a' : 'TP 1 Z I';
   }
 
   return { tarifpost, instanz, label };
@@ -71,9 +101,10 @@ export function deriveGGGWithLabel(services: LegalService[]): DerivedGGG {
 export function calculateDerivedGGG(
   services: LegalService[],
   bmglCents: number,
-  streitgenossen: number = 0
+  streitgenossen: number = 0,
+  procedureType: ProcedureType = ProcedureType.ZIVILPROZESS
 ): GGGResult & { derivedInfo: DerivedGGG } {
-  const derivedInfo = deriveGGGWithLabel(services);
+  const derivedInfo = deriveGGGWithLabel(services, procedureType);
   const result = getGGG(derivedInfo.tarifpost, bmglCents, streitgenossen);
 
   return {

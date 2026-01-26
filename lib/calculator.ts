@@ -1,4 +1,4 @@
-import { LegalService, ServiceType, CalculatedLine, TotalResult } from '../types';
+import { LegalService, ServiceType, CalculatedLine, TotalResult, ProcedureType } from '../types';
 import { getTariffBase, getESRate, getGGGResult, getTP4, getTP4Verhandlung, TP4Variante, getTagsatzung, TagsatzungType } from './tariffs';
 import { deriveGGGTarifpost, deriveGGGWithLabel } from './ggg-derive';
 import { getGGG } from './ggg';
@@ -13,13 +13,14 @@ function getTagsatzungTypeFromService(serviceType: ServiceType): TagsatzungType 
 }
 
 export function calculateCosts(
-  bmglCents: number, 
-  services: LegalService[], 
-  manualGggCents: number, 
+  bmglCents: number,
+  services: LegalService[],
+  manualGggCents: number,
   isVatFree: boolean,
   additionalParties: number,
   autoCalculateGGG: boolean,
-  isVerbandsklage: boolean = false
+  isVerbandsklage: boolean = false,
+  procedureType: ProcedureType = ProcedureType.ZIVILPROZESS
 ): TotalResult {
   const lines: CalculatedLine[] = [];
   const currentVatRate = isVatFree ? 0 : 20;
@@ -35,9 +36,9 @@ export function calculateCosts(
   if (services.length > 0 || manualGggCents > 0) {
     if (autoCalculateGGG) {
       const initiatingService = services.find(s => s.isInitiating) || services[0] || { date: new Date().toISOString() };
-      // Dynamische GGG-Ableitung aus RATG-Leistungen (hoechste Instanz gewinnt)
-      const derivedTP = deriveGGGTarifpost(services);
-      const derivedInfo = deriveGGGWithLabel(services);
+      // Dynamische GGG-Ableitung aus RATG-Leistungen (hoechste Instanz + Verfahrensart)
+      const derivedTP = deriveGGGTarifpost(services, procedureType);
+      const derivedInfo = deriveGGGWithLabel(services, procedureType);
       const ggg = getGGG(derivedTP, bmglCents, partySurchargePercent);
       lines.push({
         date: initiatingService.date,
