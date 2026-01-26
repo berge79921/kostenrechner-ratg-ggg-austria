@@ -37,15 +37,15 @@ const EXAMPLES: Example[] = [
     scenario: 'Ein Unternehmer klagt eine offene Rechnung über € 5.000 ein. Mahnklage mit ERV-Einbringung.',
     params: {
       bmgl: 5000,
-      leistungen: ['Mahnklage (TP 2)', 'ES 60%', 'ERV']
+      leistungen: ['Mahnklage (TP 2)', 'ES 120% (§ 23 Abs 6)', 'ERV']
     },
     breakdown: [
       { label: 'Tarifsatz TP 2', value: '€ 104,60', detail: 'RATG Anl. 1, Stufe 8 (bis € 7.270)' },
-      { label: 'Einheitssatz 60%', value: '€ 62,76', detail: '§ 23 RATG (bis € 10.170)' },
+      { label: 'Einheitssatz 120%', value: '€ 125,52', detail: '§ 23 Abs 6 RATG: Klage → ES doppelt' },
       { label: 'ERV-Beitrag', value: '€ 2,10', detail: '§ 23a RATG (verfahrenseinl.)' },
     ],
-    // Netto: 104,60 + 62,76 + 2,10 = 169,46 | USt: 33,89 | GGG TP1 ZI: 412 | Brutto: 615,35
-    total: { netto: 16946, ust: 3389, ggg: 41200, brutto: 61535 }
+    // Netto: 104,60 + 125,52 + 2,10 = 232,22 | USt: 46,44 | GGG TP1 ZI: 412 | Brutto: 690,66
+    total: { netto: 23222, ust: 4644, ggg: 41200, brutto: 69066 }
   },
   {
     id: 'klage-25k',
@@ -55,15 +55,15 @@ const EXAMPLES: Example[] = [
     scenario: 'Klage auf Schadenersatz wegen Vertragsverletzung. Streitwert € 25.000, qualifizierter Schriftsatz (TP 2).',
     params: {
       bmgl: 25000,
-      leistungen: ['Klage (TP 2)', 'ES 50%', 'ERV']
+      leistungen: ['Klage (TP 2)', 'ES 100% (§ 23 Abs 6)', 'ERV']
     },
     breakdown: [
       { label: 'Tarifsatz TP 2', value: '€ 370,70', detail: 'RATG Anl. 1, Stufe 11 (bis € 36.340)' },
-      { label: 'Einheitssatz 50%', value: '€ 185,35', detail: '§ 23 RATG (über € 10.170)' },
+      { label: 'Einheitssatz 100%', value: '€ 370,70', detail: '§ 23 Abs 6 RATG: Klage → ES doppelt' },
       { label: 'ERV-Beitrag', value: '€ 2,10', detail: '§ 23a RATG (verfahrenseinl.)' },
     ],
-    // Netto: 370,70 + 185,35 + 2,10 = 558,15 | USt: 111,63 | GGG TP1 ZI: 974 | Brutto: 1.643,78
-    total: { netto: 55815, ust: 11163, ggg: 97400, brutto: 164378 }
+    // Netto: 370,70 + 370,70 + 2,10 = 743,50 | USt: 148,70 | GGG TP1 ZI: 974 | Brutto: 1.866,20
+    total: { netto: 74350, ust: 14870, ggg: 97400, brutto: 186620 }
   },
   {
     id: 'tagsatzung-lg',
@@ -397,6 +397,10 @@ export const ExamplesTab: React.FC<ExamplesTabProps> = ({ onLoadExample }) => {
           <li className="flex items-start gap-2">
             <span className="text-amber-400">•</span>
             <span>Zivilrecht: TP 2 für Klagen/Schriftsätze, TP 3A für Tagsatzungen</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-amber-400">•</span>
+            <span><strong>§ 23 Abs 6 RATG:</strong> Bei Klage, Klagebeantwortung und Einspruch gegen Zahlungsbefehl ist der ES <strong>doppelt</strong> (120% bzw. 100%)</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-amber-400">•</span>
