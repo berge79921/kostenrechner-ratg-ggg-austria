@@ -1,51 +1,102 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { TotalResult, ProcedureType } from '../types';
+import { TotalResult, ProcedureType, CaseMode } from '../types';
 import { formatEuro } from './calculator';
 
+export interface PDFOptions {
+  results: TotalResult;
+  bmgl: number;
+  additionalParties: number;
+  isVatFree: boolean;
+  showSubtotals: boolean;
+  procedureType: ProcedureType;
+  caseMode: CaseMode;
+  // Haft-spezifisch
+  haftBmglStufe?: string;
+  haftBmglLabel?: string;
+  // Straf-spezifisch
+  courtType?: string;
+  courtTypeLabel?: string;
+}
+
 export function generateKostenverzeichnisPDF(
-  results: TotalResult, 
-  bmgl: number, 
+  results: TotalResult,
+  bmgl: number,
   additionalParties: number,
   isVatFree: boolean,
   showSubtotals: boolean,
-  procedureType: ProcedureType
+  procedureType: ProcedureType,
+  options?: Partial<PDFOptions>
 ) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const caseMode = options?.caseMode ?? CaseMode.CIVIL;
 
   // Header Section
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.text('KOSTENVERZEICHNIS', 14, 22);
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Erstellt am: ${new Date().toLocaleDateString('de-AT')}`, 14, 30);
-  
+
   // Case Parameter Box
   doc.setDrawColor(200);
   doc.line(14, 35, pageWidth - 14, 35);
-  
-  doc.setFont('helvetica', 'bold');
-  doc.text('Verfahrensart:', 14, 42);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${procedureType}`, 65, 42);
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('Bemessungsgrundlage:', 14, 48);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${formatEuro(bmgl * 100)}`, 65, 48);
-  
-  doc.setFont('helvetica', 'bold');
-  doc.text('Streitgenossen (§ 15):', 14, 54);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${additionalParties} weitere Person(en)`, 65, 54);
+  let yPos = 42;
 
+  // Verfahrensart
   doc.setFont('helvetica', 'bold');
-  doc.text('Steuer-Status:', 14, 60);
+  doc.text('Verfahrensart:', 14, yPos);
   doc.setFont('helvetica', 'normal');
-  doc.text(isVatFree ? 'Umsatzsteuerfrei (Netto)' : 'Regel-USt (20%)', 65, 60);
+  if (caseMode === CaseMode.DETENTION) {
+    doc.text('Haftverfahren (§ 9 Abs 1 Z 5 AHK)', 65, yPos);
+  } else if (caseMode === CaseMode.CRIMINAL) {
+    doc.text(`Strafverfahren - ${options?.courtTypeLabel || 'Gerichtshof'}`, 65, yPos);
+  } else {
+    doc.text(`${procedureType}`, 65, yPos);
+  }
+  yPos += 6;
+
+  // Bemessungsgrundlage
+  doc.setFont('helvetica', 'bold');
+  doc.text('Bemessungsgrundlage:', 14, yPos);
+  doc.setFont('helvetica', 'normal');
+  if (caseMode === CaseMode.DETENTION) {
+    doc.text(`${formatEuro(bmgl * 100)} (§ 10 Abs 1 AHK - ${options?.haftBmglLabel || 'Gerichtshof'})`, 65, yPos);
+  } else if (caseMode === CaseMode.CRIMINAL) {
+    doc.text(`${formatEuro(bmgl * 100)} (§ 10 Abs 1 AHK - ${options?.courtTypeLabel || 'Gerichtshof'})`, 65, yPos);
+  } else {
+    doc.text(`${formatEuro(bmgl * 100)}`, 65, yPos);
+  }
+  yPos += 6;
+
+  // Streitgenossen - nur bei Zivil
+  if (caseMode === CaseMode.CIVIL) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Streitgenossen (§ 15):', 14, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${additionalParties} weitere Person(en)`, 65, yPos);
+    yPos += 6;
+  }
+
+  // Steuer-Status
+  doc.setFont('helvetica', 'bold');
+  doc.text('Steuer-Status:', 14, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(isVatFree ? 'Umsatzsteuerfrei (Netto)' : 'Regel-USt (20%)', 65, yPos);
+  yPos += 6;
+
+  // Rechtsgrundlage für Haft/Straf
+  if (caseMode === CaseMode.DETENTION || caseMode === CaseMode.CRIMINAL) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Rechtsgrundlage:', 14, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text('AHK (Autonome Honorarkriterien) + RATG', 65, yPos);
+    yPos += 6;
+  }
 
   // Table Data Preparation
   const tableData: any[][] = [];
@@ -97,7 +148,7 @@ export function generateKostenverzeichnisPDF(
 
   // Table Generation using autoTable direct function call (ESM safe)
   autoTable(doc, {
-    startY: 70,
+    startY: yPos + 8,
     head: [['Datum', 'Leistung / Position', 'Gesetzliche Basis', 'Betrag']],
     body: tableData,
     theme: 'striped',

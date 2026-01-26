@@ -51,9 +51,13 @@ import {
 } from './lib/ahk';
 import { calculateStrafCosts } from './lib/straf-calculator';
 import { getStrafCatalog, getGroupedStrafCatalog, STRAF_CATEGORY_LABELS, getDefaultStrafService } from './lib/straf-catalog';
+// Haft-Imports
+import { HaftService, HaftLeistungType, HaftBmglStufe } from './types';
+import { calculateHaftCosts, HAFT_BEMESSUNGSGRUNDLAGEN, HAFT_BMGL_LABELS } from './lib/haft-calculator';
+import { HAFT_CATALOG, HAFT_CATEGORY_LABELS, HAFT_LEISTUNG_LABELS, getGroupedHaftCatalog, getDefaultHaftService, isHaftTagsatzung, hasHaftKilometer } from './lib/haft-catalog';
 import { ValuationModal } from './components/ValuationModal';
 import { ProWikiModal } from './components/ProWikiModal';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Lock } from 'lucide-react';
 
 // Helper: Map ServiceType to TagsatzungType
 function getTagsatzungType(serviceType: ServiceType): TagsatzungType | null {
@@ -140,8 +144,22 @@ const App: React.FC = () => {
   const [showValuationModal, setShowValuationModal] = useState(false);
   const [showWiki, setShowWiki] = useState(false);
 
+  // --- Haft-State ---
+  const [haftBmglStufe, setHaftBmglStufe] = useState<HaftBmglStufe>('ER_GH');
+  const [haftServices, setHaftServices] = useState<HaftService[]>([]);
+  const [showHaftCatalog, setShowHaftCatalog] = useState(false);
+  const [haftSearchTerm, setHaftSearchTerm] = useState("");
+  const [openHaftServiceDropdown, setOpenHaftServiceDropdown] = useState<string | null>(null);
+
   // --- Calculations ---
   const results = useMemo(() => {
+    if (caseMode === CaseMode.DETENTION) {
+      return calculateHaftCosts({
+        bmglStufe: haftBmglStufe,
+        services: haftServices,
+        isVatFree,
+      });
+    }
     if (caseMode === CaseMode.CRIMINAL) {
       return calculateStrafCosts({
         courtType,
@@ -160,7 +178,7 @@ const App: React.FC = () => {
       autoGgg,
       isVerbandsklage
     );
-  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent]);
+  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices]);
 
   // --- Tariff Info ---
   const tariffInfo = useMemo(() => {
@@ -274,8 +292,75 @@ const App: React.FC = () => {
   // Straf-Info für Anzeige
   const strafBmgl = STRAF_BEMESSUNGSGRUNDLAGEN[courtType];
 
+  // --- Haft-Handlers ---
+  const addHaftService = (leistungType: HaftLeistungType) => {
+    const defaults = getDefaultHaftService(leistungType);
+    const newService: HaftService = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString().split('T')[0],
+      label: HAFT_LEISTUNG_LABELS[leistungType],
+      leistungType,
+      durationHalbeStunden: defaults.durationHalbeStunden,
+      waitingHalbeStunden: defaults.waitingHalbeStunden,
+      esMultiplier: defaults.esMultiplier,
+      includeErv: defaults.includeErv,
+      kilometerHin: 0,
+      isRueckfahrt: true,
+      isFrustriert: false,
+    };
+    setHaftServices([...haftServices, newService]);
+    setShowHaftCatalog(false);
+    setHaftSearchTerm("");
+  };
+
+  const removeHaftService = (id: string) => {
+    setHaftServices(haftServices.filter(s => s.id !== id));
+  };
+
+  const updateHaftService = (id: string, updates: Partial<HaftService>) => {
+    setHaftServices(haftServices.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+
+  const groupedHaftCatalog = useMemo(() => getGroupedHaftCatalog(), []);
+
+  const filteredHaftCatalog = HAFT_CATALOG.filter(c =>
+    c.full.toLowerCase().includes(haftSearchTerm.toLowerCase()) ||
+    c.short.toLowerCase().includes(haftSearchTerm.toLowerCase())
+  );
+
+  // Haft-BMGL für Anzeige
+  const haftBmgl = HAFT_BEMESSUNGSGRUNDLAGEN[haftBmglStufe];
+
   const handleDownload = () => {
-    generateKostenverzeichnisPDF(results, bmgl, additionalParties, isVatFree, showSubtotals, procedureType);
+    // Bestimme die korrekten Werte je nach Modus
+    const effectiveBmgl = caseMode === CaseMode.DETENTION
+      ? haftBmgl / 100  // haftBmgl ist in Cents
+      : caseMode === CaseMode.CRIMINAL
+        ? strafBmgl / 100  // strafBmgl ist in Cents
+        : bmgl;
+
+    const haftBmglLabels: Record<string, string> = {
+      'BG': 'Bezirksgericht',
+      'ER_GH': 'Einzelrichter Gerichtshof',
+      'SCHOEFFEN': 'Schöffengericht',
+      'GESCHWORENEN': 'Geschworenengericht',
+    };
+
+    generateKostenverzeichnisPDF(
+      results,
+      effectiveBmgl,
+      additionalParties,
+      isVatFree,
+      showSubtotals,
+      procedureType,
+      {
+        caseMode,
+        haftBmglStufe: haftBmglStufe,
+        haftBmglLabel: haftBmglLabels[haftBmglStufe],
+        courtType: courtType,
+        courtTypeLabel: COURT_TYPE_LABELS[courtType],
+      }
+    );
   };
 
   return (
@@ -339,6 +424,17 @@ const App: React.FC = () => {
                 <Gavel className="h-4 w-4" />
                 Strafrecht
               </button>
+              <button
+                onClick={() => setCaseMode(CaseMode.DETENTION)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  caseMode === CaseMode.DETENTION
+                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Lock className="h-4 w-4" />
+                Haftrecht
+              </button>
             </div>
           </div>
           <div className="flex gap-3">
@@ -360,11 +456,11 @@ const App: React.FC = () => {
         <div className="grid gap-8 lg:grid-cols-12">
           {/* Settings & Service Cards - Left Column (scrollable) */}
           <div className="lg:col-span-5 space-y-6">
-            <GlassCard variant="light" title={caseMode === CaseMode.CRIMINAL ? "Strafverfahren" : "Zivilverfahren"} className={`ring-1 ${caseMode === CaseMode.CRIMINAL ? 'ring-red-500/30' : 'ring-white/20'}`}>
+            <GlassCard variant="light" title={caseMode === CaseMode.CRIMINAL ? "Strafverfahren" : caseMode === CaseMode.DETENTION ? "Haftverfahren" : "Zivilverfahren"} className={`ring-1 ${caseMode === CaseMode.CRIMINAL ? 'ring-red-500/30' : caseMode === CaseMode.DETENTION ? 'ring-amber-500/30' : 'ring-white/20'}`}>
               <div className="space-y-6">
 
                 {/* === STRAF-MODUS === */}
-                {caseMode === CaseMode.CRIMINAL ? (
+                {caseMode === CaseMode.CRIMINAL && (
                   <>
                     {/* Gerichtstyp */}
                     <div>
@@ -482,7 +578,116 @@ const App: React.FC = () => {
                       )}
                     </div>
                   </>
-                ) : (
+                )}
+
+                {/* === HAFT-MODUS === */}
+                {caseMode === CaseMode.DETENTION && (
+                  <>
+                    {/* BMGL-Stufe nach Ausgangsverfahren */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-widest block mb-2 flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5" /> Ausgangsverfahren (§ 10 Abs 1 AHK)
+                      </label>
+                      <select
+                        value={haftBmglStufe}
+                        onChange={(e) => setHaftBmglStufe(e.target.value as HaftBmglStufe)}
+                        className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-4 font-bold text-slate-900 appearance-none outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-400 transition-all cursor-pointer shadow-sm"
+                      >
+                        <option value="BG">Bezirksgericht (€ 7.800)</option>
+                        <option value="ER_GH">Einzelrichter Gerichtshof (€ 18.000)</option>
+                        <option value="SCHOEFFEN">Schöffengericht (€ 27.600)</option>
+                        <option value="GESCHWORENEN">Geschworenengericht (€ 33.200)</option>
+                      </select>
+                    </div>
+
+                    {/* Haft-Tarifübersicht */}
+                    <div className="space-y-4">
+                      {/* RATG Tarife für Haftrecht - DYNAMISCH nach BMGL */}
+                      {(() => {
+                        // Berechne die korrekten RATG-Tarife für die aktuelle BMGL
+                        const tp72Result = getKommission(haftBmgl, 1, 0, true); // TP 7/2: mitRA=true
+                        const tp3aResult = getTariffBase(haftBmgl, 'TP3A');
+                        const tp3bResult = getTariffBase(haftBmgl, 'TP3B');
+                        const tp2Result = getTariffBase(haftBmgl, 'TP2');
+
+                        return (
+                          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-slate-50 border border-blue-200/50 shadow-sm">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-blue-800">RATG Tarife (§ 10 AHK)</span>
+                              <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">BMGL € {(haftBmgl / 100).toLocaleString('de-AT')}</span>
+                            </div>
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-slate-700">Besuch Haftanstalt (TP 7/2)</span>
+                                <span className="font-mono font-bold text-blue-900">€ {(tp72Result.kommission / 100).toFixed(2).replace('.', ',')} / ½h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-700">Enthaftungsantrag (TP 3A)</span>
+                                <span className="font-mono font-bold text-blue-900">€ {(tp3aResult.base / 100).toFixed(2).replace('.', ',')}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-700">Haftbeschwerde (TP 3B)</span>
+                                <span className="font-mono font-bold text-blue-900">€ {(tp3bResult.base / 100).toFixed(2).replace('.', ',')}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-700">Kurzantrag (TP 2)</span>
+                                <span className="font-mono font-bold text-blue-900">€ {(tp2Result.base / 100).toFixed(2).replace('.', ',')}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* AHK § 9 Z 5 Fixsätze - IMMER GLEICH für Haftverfahren */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-300/50 shadow-sm">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-800">§ 9 Z 5 AHK Fixsätze</span>
+                          <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded">Haft-spezifisch</span>
+                        </div>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-slate-700">Haftverhandlung 1. Instanz</span>
+                            <span className="font-mono font-bold text-amber-900">€ 364 / € 182</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-700">Grundrechtsbeschwerde</span>
+                            <span className="font-mono font-bold text-amber-900">€ 786</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-700">Sonstige Haftbeschwerde</span>
+                            <span className="font-mono font-bold text-amber-900">€ 564</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-700">Haftverhandlung 2. Instanz</span>
+                            <span className="font-mono font-bold text-amber-900">€ 564 / € 282</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-amber-200/50 text-[10px] text-amber-700 italic">
+                          Diese Sätze gelten fix für alle Haftverfahren unabhängig vom Ausgangsverfahren.
+                        </div>
+                      </div>
+
+                      {/* Barauslagen */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200 shadow-sm">
+                        <div className="mb-3">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">Barauslagen (TP 9)</span>
+                        </div>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-slate-700">Kilometergeld (TP 9/3)</span>
+                            <span className="font-mono font-bold text-slate-800">€ 0,50 / km</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-700">Reisezeit (TP 9/4)</span>
+                            <span className="font-mono font-bold text-slate-800">€ 33,90 / ½h</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {caseMode === CaseMode.CIVIL && (
                   <>
                     {/* === ZIVIL-MODUS (BESTEHEND) === */}
                     {/* Bemessungsgrundlage */}
@@ -2364,6 +2569,516 @@ const App: React.FC = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            )}
+
+            {/* Haft-Service Cards (nur im Haft-Modus) */}
+            {caseMode === CaseMode.DETENTION && (
+            <div className="space-y-3">
+              {haftServices.map((s) => {
+                const catalogEntry = HAFT_CATALOG.find(e => e.type === s.leistungType);
+                const hasKm = hasHaftKilometer(s.leistungType);
+
+                // Kategorisierung der Leistungen
+                const isAHKTagsatzung = ['HAFT_VH_1_INSTANZ', 'HAFT_VH_2_INSTANZ'].includes(s.leistungType);
+                const isAHKSchriftsatz = ['HAFT_GRUNDRECHTSBESCHWERDE', 'HAFT_BESCHWERDE_SONST'].includes(s.leistungType);
+                const isRATGKommission = ['HAFT_BESUCH', 'HAFT_ZUWARTEN'].includes(s.leistungType);
+                const isRATGSchriftsatz = ['HAFT_ANTRAG_TP3A', 'HAFT_BESCHWERDE_TP3B', 'HAFT_KURZANTRAG_TP2'].includes(s.leistungType);
+                const isBarauslagen = ['HAFT_REISEKOSTEN', 'HAFT_REISEZEIT'].includes(s.leistungType);
+
+                // Hat Dauer: Tagsatzungen und Kommissionen
+                const hasDuration = isAHKTagsatzung || isRATGKommission;
+                // Ist Schriftsatz (OHNE Dauer)
+                const isSchriftsatz = isAHKSchriftsatz || isRATGSchriftsatz;
+                // Braucht RATG-Tarif
+                const needsRATGTarif = isRATGKommission || isRATGSchriftsatz;
+
+                // Berechnung
+                const currentBmgl = haftBmgl;
+                let entlohnung = 0;
+                let tariffLabel = '';
+                let tpLabel = '';
+
+                // AHK § 9 Abs 1 Z 5 Tarife (Fixsätze)
+                if (s.leistungType === 'HAFT_VH_1_INSTANZ') {
+                  const first = 36400;
+                  const sub = s.durationHalbeStunden > 1 ? (s.durationHalbeStunden - 1) * 18200 : 0;
+                  entlohnung = first + sub;
+                  tpLabel = '§ 9 Z 5 lit a AHK';
+                  tariffLabel = 'AHK Fixsatz';
+                } else if (s.leistungType === 'HAFT_VH_2_INSTANZ') {
+                  const first = 56400;
+                  const sub = s.durationHalbeStunden > 1 ? (s.durationHalbeStunden - 1) * 28200 : 0;
+                  entlohnung = first + sub;
+                  tpLabel = '§ 9 Z 5 lit c AHK';
+                  tariffLabel = 'AHK Fixsatz';
+                } else if (s.leistungType === 'HAFT_GRUNDRECHTSBESCHWERDE') {
+                  entlohnung = 78600;
+                  tpLabel = '§ 9 Z 5 lit b AHK';
+                  tariffLabel = 'AHK Fixsatz';
+                } else if (s.leistungType === 'HAFT_BESCHWERDE_SONST') {
+                  entlohnung = 56400;
+                  tpLabel = '§ 9 Z 5 lit b AHK';
+                  tariffLabel = 'AHK Fixsatz';
+                }
+                // RATG TP 7/2 - Besuch / Zuwarten (mit getKommission)
+                else if (s.leistungType === 'HAFT_BESUCH' || s.leistungType === 'HAFT_ZUWARTEN') {
+                  const kommResult = getKommission(currentBmgl, s.durationHalbeStunden, 0, true);
+                  entlohnung = kommResult.kommission;
+                  tpLabel = 'TP 7/2 RATG';
+                  tariffLabel = `BMGL € ${(currentBmgl / 100).toLocaleString('de-AT')}`;
+                }
+                // RATG TP 3A - Anträge (mit getTariffBase)
+                else if (s.leistungType === 'HAFT_ANTRAG_TP3A') {
+                  const tariffResult = getTariffBase(currentBmgl, 'TP3A');
+                  entlohnung = tariffResult.base;
+                  tpLabel = 'TP 3A RATG';
+                  tariffLabel = tariffResult.label;
+                }
+                // RATG TP 3B - Beschwerden (mit getTariffBase)
+                else if (s.leistungType === 'HAFT_BESCHWERDE_TP3B') {
+                  const tariffResult = getTariffBase(currentBmgl, 'TP3B');
+                  entlohnung = tariffResult.base;
+                  tpLabel = 'TP 3B RATG';
+                  tariffLabel = tariffResult.label;
+                }
+                // RATG TP 2 - Kurzanträge (mit getTariffBase)
+                else if (s.leistungType === 'HAFT_KURZANTRAG_TP2') {
+                  const tariffResult = getTariffBase(currentBmgl, 'TP2');
+                  entlohnung = tariffResult.base;
+                  tpLabel = 'TP 2 RATG';
+                  tariffLabel = tariffResult.label;
+                }
+                // Barauslagen
+                else if (s.leistungType === 'HAFT_REISEKOSTEN') {
+                  const km = (s.kilometerHin ?? 0) * (s.isRueckfahrt ? 2 : 1);
+                  entlohnung = km * 50;
+                  tpLabel = 'TP 9/3 RATG';
+                  tariffLabel = `${km} km × € 0,50`;
+                } else if (s.leistungType === 'HAFT_REISEZEIT') {
+                  entlohnung = s.durationHalbeStunden * 3390;
+                  tpLabel = 'TP 9/4 RATG';
+                  tariffLabel = `${s.durationHalbeStunden} × € 33,90`;
+                }
+
+                // ES-Rate berechnen
+                // - RATG-Schriftsätze: 0-4x (keiner bis vierfach)
+                // - AHK-Schriftsätze: 0-1x (keiner oder einfach)
+                const esBaseRate = currentBmgl <= 1017000 ? 0.6 : 0.5; // 60% bis € 10.170, sonst 50%
+                const esMultiplierCapped = isAHKSchriftsatz ? Math.min(s.esMultiplier, 1) : s.esMultiplier; // AHK max einfach
+                const esRate = (needsRATGTarif || isAHKSchriftsatz) ? esMultiplierCapped * esBaseRate : 0;
+                const esZuschlag = Math.round(entlohnung * esRate);
+
+                // ERV-Berechnung (basierend auf ervRateOverride)
+                const ervAmount = s.includeErv
+                  ? (s.ervRateOverride === 'regular' ? 260 : 500)  // regular = € 2,60, initial/default = € 5,00
+                  : 0;
+                const nettoSumme = entlohnung + esZuschlag + ervAmount;
+                const ust = Math.round(nettoSumme * 0.2);
+
+                return (
+                <GlassCard key={s.id} className="!p-4 relative group/item" variant="light">
+                  <button
+                    onClick={() => removeHaftService(s.id)}
+                    className="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-colors bg-white/60 p-1.5 rounded-lg border border-slate-200 z-20"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+
+                  <div className="space-y-3 relative z-10">
+                    {/* Header: Date + Type Badge */}
+                    <div className="flex items-center gap-2 pr-8">
+                      <input
+                        type="date"
+                        value={s.date}
+                        onChange={e => updateHaftService(s.id, { date: e.target.value })}
+                        className="bg-white/60 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 shadow-sm w-28"
+                      />
+                      <span className={`px-2 py-1 rounded-lg text-white text-[10px] font-black shrink-0 ${
+                        (isAHKTagsatzung || isAHKSchriftsatz) ? 'bg-amber-600' : isBarauslagen ? 'bg-slate-600' : 'bg-blue-500'
+                      }`}>
+                        {(isAHKTagsatzung || isAHKSchriftsatz) ? '§9 AHK' : catalogEntry?.category === 'BESUCH' ? 'TP 7/2' : catalogEntry?.category === 'BARAUSLAGEN' ? 'TP 9' : tpLabel || 'RATG'}
+                      </span>
+                    </div>
+
+                    {/* Service Dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenHaftServiceDropdown(openHaftServiceDropdown === s.id ? null : s.id)}
+                        className="w-full bg-slate-800 border-none rounded-xl px-3 py-2 text-sm font-bold text-white text-left cursor-pointer pr-8 shadow-lg ring-1 ring-white/10 hover:bg-slate-700 transition-colors"
+                      >
+                        {s.label || 'Leistung wählen...'}
+                      </button>
+                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none transition-transform ${openHaftServiceDropdown === s.id ? 'rotate-180' : ''}`} />
+
+                      {openHaftServiceDropdown === s.id && (
+                        <div className="absolute top-full left-0 right-0 z-50 mt-2 p-3 rounded-2xl bg-slate-900 border border-white/10 shadow-2xl backdrop-blur-3xl max-h-[400px] overflow-y-auto custom-scrollbar">
+                          {(Object.entries(groupedHaftCatalog) as [string, typeof HAFT_CATALOG][]).map(([cat, entries]) => (
+                            entries.length > 0 && (
+                              <div key={cat}>
+                                <div className={`text-[11px] font-black uppercase tracking-widest px-2 py-1 mb-1 mt-2 first:mt-0 ${
+                                  cat === 'VERHANDLUNG' ? 'text-amber-400' :
+                                  cat === 'SCHRIFTSATZ' ? 'text-blue-400' :
+                                  cat === 'BESUCH' ? 'text-emerald-400' : 'text-slate-400'
+                                }`}>
+                                  {HAFT_CATEGORY_LABELS[cat as keyof typeof HAFT_CATEGORY_LABELS]}
+                                </div>
+                                {entries.map(entry => (
+                                  <button
+                                    key={entry.type}
+                                    onClick={() => {
+                                      const defaults = getDefaultHaftService(entry.type);
+                                      updateHaftService(s.id, {
+                                        leistungType: entry.type,
+                                        label: entry.short,
+                                        durationHalbeStunden: defaults.durationHalbeStunden,
+                                        esMultiplier: defaults.esMultiplier,
+                                        includeErv: defaults.includeErv,
+                                      });
+                                      setOpenHaftServiceDropdown(null);
+                                    }}
+                                    className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                  >
+                                    <span className="text-sm font-medium text-white/90 hover:text-amber-400">
+                                      {entry.short}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Label Input */}
+                    <input
+                      type="text"
+                      value={s.label}
+                      onChange={e => updateHaftService(s.id, { label: e.target.value })}
+                      className="w-full bg-slate-900/5 border-none rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 shadow-inner"
+                      placeholder="Bezeichnung..."
+                    />
+
+                    {/* Eingabefelder für Tagsatzungen und Kommissionen (mit DAUER) */}
+                    {hasDuration && (
+                      <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-3 items-center">
+                          {/* Dauer */}
+                          <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Dauer</label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateHaftService(s.id, { durationHalbeStunden: Math.max(1, s.durationHalbeStunden - 1) })}
+                              className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-700 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
+                            >−</button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={s.durationHalbeStunden}
+                              onChange={e => updateHaftService(s.id, { durationHalbeStunden: Math.max(1, Number(e.target.value)) })}
+                              className="w-14 bg-white border border-slate-200/80 rounded-xl px-2 py-2 text-sm font-bold text-center text-slate-800 shadow-[0_2px_4px_rgba(0,0,0,0.06),inset_0_1px_2px_rgba(255,255,255,0.8)]"
+                            />
+                            <button
+                              onClick={() => updateHaftService(s.id, { durationHalbeStunden: s.durationHalbeStunden + 1 })}
+                              className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-700 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
+                            >+</button>
+                            <span className="text-sm text-slate-700 font-bold ml-1">½ Std.</span>
+                          </div>
+                        </div>
+
+                        {/* Ergebnis-Box für Tagsatzungen */}
+                        <div className="mt-2 p-4 bg-gradient-to-br from-amber-50 to-slate-50 rounded-2xl border border-amber-200/50 space-y-3">
+                          <div className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
+                            {isAHKTagsatzung ? tpLabel : 'RATG Entlohnung'}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-600">Entlohnung ({s.durationHalbeStunden} × ½ Std.)</span>
+                              <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(entlohnung)}</span>
+                            </div>
+                          </div>
+                          <div className="border-t border-amber-200/50 pt-3 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-700 font-medium">Summe netto</span>
+                              <span className="font-mono text-sm font-bold text-slate-900">{formatEuro(entlohnung)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-600">+ 20% USt</span>
+                              <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(Math.round(entlohnung * 0.2))}</span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-amber-200/30">
+                              <span className="text-xs text-slate-700 font-bold">Brutto</span>
+                              <span className="font-mono text-base font-black text-amber-700">{formatEuro(entlohnung + Math.round(entlohnung * 0.2))}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Schriftsätze (ohne DAUER) - AHK und RATG */}
+                    {isSchriftsatz && (
+                      <div className="space-y-4 pt-2">
+                        {/* Einheitssatz - RATG: alle Optionen, AHK: nur keiner/einfach */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Einheitssatz</span>
+                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${
+                              isAHKSchriftsatz ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-blue-100 text-blue-800 border-blue-200'
+                            }`}>
+                              {s.esMultiplier === 0 ? 'keiner' : s.esMultiplier === 1 ? 'einfach' : s.esMultiplier === 2 ? 'doppelt' : s.esMultiplier === 3 ? 'dreifach' : 'vierfach'}
+                            </span>
+                          </div>
+                          <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                            {(isAHKSchriftsatz
+                              ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }]
+                              : [
+                                  { val: 0, label: 'keiner' },
+                                  { val: 1, label: 'einfach' },
+                                  { val: 2, label: 'doppelt' },
+                                  { val: 3, label: 'dreifach' },
+                                  { val: 4, label: 'vierfach' }
+                                ]
+                            ).map((opt) => (
+                              <button
+                                key={opt.val}
+                                onClick={() => updateHaftService(s.id, { esMultiplier: opt.val })}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
+                                  s.esMultiplier === opt.val
+                                    ? (isAHKSchriftsatz ? 'text-amber-800 bg-white shadow-sm ring-1 ring-amber-500/20' : 'text-blue-800 bg-white shadow-sm ring-1 ring-blue-500/20')
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ERV-Beitrag */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-3.5 w-3.5 text-slate-500" />
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">ERV-Beitrag (§ 23a)</span>
+                          </div>
+                          <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                            {[
+                              { val: 'none', label: 'Aus' },
+                              { val: 'regular', label: 'Regulär' },
+                              { val: 'initial', label: 'Erstmals' }
+                            ].map((opt) => (
+                              <button
+                                key={opt.val}
+                                onClick={() => updateHaftService(s.id, {
+                                  includeErv: opt.val !== 'none',
+                                  ervRateOverride: opt.val === 'none' ? undefined : opt.val as 'initial' | 'regular'
+                                })}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
+                                  (opt.val === 'none' && !s.includeErv) ||
+                                  (opt.val === 'regular' && s.includeErv && s.ervRateOverride === 'regular') ||
+                                  (opt.val === 'initial' && s.includeErv && (s.ervRateOverride === 'initial' || !s.ervRateOverride))
+                                    ? 'text-blue-800 bg-white shadow-sm ring-1 ring-blue-500/20'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Ergebnis-Box für Schriftsätze - wie Zivilrecht */}
+                        <div className="mt-2 p-4 bg-gradient-to-br from-blue-50 to-slate-50 rounded-2xl border border-blue-200/50 space-y-3">
+                          <div className="text-[10px] font-black text-blue-700 uppercase tracking-widest">
+                            {isAHKSchriftsatz ? `${tpLabel} - Ergebnis` : `Schriftsatz ${tpLabel} - Ergebnis`}
+                          </div>
+                          <div className="space-y-2">
+                            {needsRATGTarif && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-600">Tarifstufe</span>
+                                <span className="font-mono text-xs font-bold text-slate-800">{tariffLabel}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-600">Entlohnung</span>
+                              <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(entlohnung)}</span>
+                            </div>
+                            {esZuschlag > 0 && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-600">Einheitssatz {Math.round(esRate * 100)}%</span>
+                                <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(esZuschlag)}</span>
+                              </div>
+                            )}
+                            {s.includeErv && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-600">ERV-Beitrag</span>
+                                <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(ervAmount)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="border-t border-blue-200/50 pt-3 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-700 font-medium">Summe netto</span>
+                              <span className="font-mono text-sm font-bold text-slate-900">{formatEuro(nettoSumme)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-600">20% USt.</span>
+                              <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(ust)}</span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-blue-200/30">
+                              <span className="text-xs text-slate-700 font-bold">Summe brutto</span>
+                              <span className="font-mono text-base font-black text-blue-700">{formatEuro(nettoSumme + ust)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Kilometer-Eingabe für Reisekosten */}
+                    {hasKm && (
+                      <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-3 items-center">
+                          <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Kilometer</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              value={s.kilometerHin ?? 0}
+                              onChange={e => updateHaftService(s.id, { kilometerHin: Math.max(0, Number(e.target.value)) })}
+                              className="w-20 bg-white border border-slate-200/80 rounded-xl px-3 py-2 text-sm font-bold text-center text-slate-800 shadow-[0_2px_4px_rgba(0,0,0,0.06)]"
+                            />
+                            <span className="text-sm text-slate-700 font-bold">km</span>
+                          </div>
+                          <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Richtung</label>
+                          <button
+                            onClick={() => updateHaftService(s.id, { isRueckfahrt: !s.isRueckfahrt })}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                              s.isRueckfahrt
+                                ? 'bg-amber-500 text-white border border-amber-400'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}
+                          >
+                            {s.isRueckfahrt ? '↔ Hin + Rückfahrt' : '→ Nur Hinfahrt'}
+                          </button>
+                        </div>
+                        {/* Ergebnis */}
+                        <div className="p-4 bg-gradient-to-br from-amber-50 to-slate-50 rounded-2xl border border-amber-200/50">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-700">{(s.kilometerHin ?? 0) * (s.isRueckfahrt ? 2 : 1)} km × € 0,50</span>
+                            <span className="font-mono text-base font-black text-amber-700">{formatEuro(entlohnung)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reisezeit */}
+                    {s.leistungType === 'HAFT_REISEZEIT' && (
+                      <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-3 items-center">
+                          <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Reisezeit</label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateHaftService(s.id, { durationHalbeStunden: Math.max(1, s.durationHalbeStunden - 1) })}
+                              className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-700 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
+                            >−</button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={s.durationHalbeStunden}
+                              onChange={e => updateHaftService(s.id, { durationHalbeStunden: Math.max(1, Number(e.target.value)) })}
+                              className="w-14 bg-white border border-slate-200/80 rounded-xl px-2 py-2 text-sm font-bold text-center text-slate-800 shadow-[0_2px_4px_rgba(0,0,0,0.06)]"
+                            />
+                            <button
+                              onClick={() => updateHaftService(s.id, { durationHalbeStunden: s.durationHalbeStunden + 1 })}
+                              className="w-9 h-9 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50 flex items-center justify-center text-slate-700 font-bold text-lg shadow-[0_2px_4px_rgba(0,0,0,0.08)] active:shadow-inner active:scale-95 transition-all"
+                            >+</button>
+                            <span className="text-sm text-slate-700 font-bold ml-1">½ Std.</span>
+                          </div>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-amber-50 to-slate-50 rounded-2xl border border-amber-200/50">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-700">{s.durationHalbeStunden} × € 33,90 (TP 9/4)</span>
+                            <span className="font-mono text-base font-black text-amber-700">{formatEuro(entlohnung)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </GlassCard>
+                );
+              })}
+
+              {/* Add Haft-Service Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowHaftCatalog(!showHaftCatalog)}
+                  className="w-full py-4 rounded-2xl border-2 border-dashed border-amber-500/30 text-amber-400/70 hover:text-amber-400 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest group"
+                >
+                  <Plus className="h-4 w-4 group-hover:scale-125 transition-transform" /> Haft-Leistung Hinzufügen
+                </button>
+
+                {showHaftCatalog && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-2 p-3 rounded-2xl bg-slate-900 border border-amber-500/20 shadow-2xl backdrop-blur-3xl animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="relative mb-3">
+                      <input
+                        autoFocus
+                        placeholder="Suchen (z.B. Besuch, Grundrechtsbeschwerde...)"
+                        value={haftSearchTerm}
+                        onChange={(e) => setHaftSearchTerm(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500/30"
+                      />
+                    </div>
+                    {haftSearchTerm ? (
+                      <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1">
+                        {filteredHaftCatalog.map(entry => (
+                          <button
+                            key={entry.type}
+                            onClick={() => addHaftService(entry.type)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors group"
+                          >
+                            <span className="text-sm font-medium text-white/90 group-hover:text-amber-400">{entry.short}</span>
+                            <span className="text-xs text-slate-500 block">{entry.full}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+                        {(Object.entries(groupedHaftCatalog) as [string, typeof HAFT_CATALOG][]).map(([cat, entries]) => (
+                          entries.length > 0 && (
+                            <div key={cat}>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-2 px-2">
+                                {HAFT_CATEGORY_LABELS[cat as keyof typeof HAFT_CATEGORY_LABELS]}
+                              </p>
+                              <div className="space-y-1">
+                                {entries.map((entry) => (
+                                  <button
+                                    key={entry.type}
+                                    onClick={() => addHaftService(entry.type)}
+                                    className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors group flex items-center gap-2"
+                                  >
+                                    <span className={`px-2 py-1 rounded-lg text-white text-[10px] font-black shrink-0 ${
+                                      entry.category === 'VERHANDLUNG' ? 'bg-amber-600' :
+                                      entry.category === 'SCHRIFTSATZ' ? 'bg-blue-500' :
+                                      entry.category === 'BESUCH' ? 'bg-emerald-500' :
+                                      'bg-slate-500'
+                                    }`}>
+                                      {entry.category === 'VERHANDLUNG' ? 'VH' :
+                                       entry.category === 'SCHRIFTSATZ' ? 'SS' :
+                                       entry.category === 'BESUCH' ? 'TP7' :
+                                       'BAR'}
+                                    </span>
+                                    <span className="text-sm font-medium text-white/90 group-hover:text-amber-400">{entry.short}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

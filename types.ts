@@ -127,6 +127,7 @@ export enum ProcedureType {
 export enum CaseMode {
   CIVIL = 'CIVIL',
   CRIMINAL = 'CRIMINAL',
+  DETENTION = 'DETENTION', // Haftrecht (§ 10 AHK)
 }
 
 // Re-export AHK types
@@ -147,4 +148,46 @@ export interface StrafService {
   isFrustriert?: boolean; // Frustrierte Tagsatzung
   nbUndBerufung?: boolean; // § 9 Abs 2: +20% bei NB + Berufung kombiniert
   verteidigerUndPb?: boolean; // § 10 Abs 5: auch PB-Vertreter für dieselbe Person
+}
+
+// ============================================================================
+// HAFTRECHT - AHK § 9 Abs 1 Z 5 + § 10
+// ============================================================================
+
+export type HaftLeistungType =
+  // § 9 Abs 1 Z 5 AHK - Haftverfahren
+  | 'HAFT_VH_1_INSTANZ'         // a) Verhandlungen 1. Instanz
+  | 'HAFT_GRUNDRECHTSBESCHWERDE' // b) Grundrechtsbeschwerde
+  | 'HAFT_BESCHWERDE_SONST'      // b) Sonstige Beschwerden
+  | 'HAFT_VH_2_INSTANZ'          // c) Verhandlungen 2. Instanz
+  // § 10 AHK - RATG Anwendung
+  | 'HAFT_BESUCH'                // TP 7/2 - Besuch in Haftanstalt
+  | 'HAFT_ANTRAG_TP3A'           // TP 3A - Enthaftungsantrag, EV-Antrag
+  | 'HAFT_BESCHWERDE_TP3B'       // TP 3B - Beschwerden §§ 87, 106 StPO
+  | 'HAFT_KURZANTRAG_TP2'        // TP 2 - Kurze Anträge
+  | 'HAFT_ZUWARTEN'              // TP 7/2 - Zuwarten (§ 9 Abs 4)
+  // Barauslagen
+  | 'HAFT_REISEKOSTEN'           // TP 9/3 - €0,50/km
+  | 'HAFT_REISEZEIT';            // TP 9/4 - Reisezeit pro halbe Stunde
+
+export type HaftBmglStufe =
+  | 'BG'           // € 7.800 - Bezirksgericht
+  | 'ER_GH'        // € 18.000 - Einzelrichter Gerichtshof
+  | 'SCHOEFFEN'    // € 27.600 - Schöffengericht
+  | 'GESCHWORENEN'; // € 33.200 - Geschworenengericht
+
+export interface HaftService {
+  id: string;
+  date: string;
+  label: string;
+  leistungType: HaftLeistungType;
+  durationHalbeStunden: number; // Dauer in halben Stunden
+  waitingHalbeStunden: number;  // Wartezeit in halben Stunden
+  esMultiplier: number;         // 0 = keiner, 1-4 = einfach bis vierfach
+  includeErv: boolean;
+  ervRateOverride?: 'initial' | 'regular'; // initial = € 5,00, regular = € 2,60
+  // Haft-spezifisch
+  kilometerHin?: number;        // Entfernung Kanzlei → Haftanstalt (einfach)
+  isRueckfahrt?: boolean;       // Mit Rückfahrt (verdoppelt km)
+  isFrustriert?: boolean;       // Frustrierte Verhandlung
 }
