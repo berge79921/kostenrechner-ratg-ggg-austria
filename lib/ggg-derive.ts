@@ -30,7 +30,8 @@ export interface DerivedGGG {
  *   1. Instanz → GGG TP 4 Z I lit. a
  */
 export function deriveGGGTarifpost(services: LegalService[], procedureType: ProcedureType = ProcedureType.ZIVILPROZESS): GGGTarifpost {
-  const isExekution = procedureType === ProcedureType.EXEKUTION || procedureType === ProcedureType.EXECUTION;
+  // String-basierter Vergleich für enum alias compatibility (EXEKUTION === EXECUTION)
+  const isExekution = String(procedureType) === String(ProcedureType.EXEKUTION);
 
   // 3. Instanz: TP3C
   const hasTP3C = services.some(s =>
@@ -61,7 +62,7 @@ export function deriveGGGTarifpost(services: LegalService[], procedureType: Proc
  */
 export function deriveGGGWithLabel(services: LegalService[], procedureType: ProcedureType = ProcedureType.ZIVILPROZESS): DerivedGGG {
   const tarifpost = deriveGGGTarifpost(services, procedureType);
-  const isExekution = procedureType === ProcedureType.EXEKUTION || procedureType === ProcedureType.EXECUTION;
+  const isExekution = String(procedureType) === String(ProcedureType.EXEKUTION);
 
   let instanz: DerivedInstanz;
   let label: string;

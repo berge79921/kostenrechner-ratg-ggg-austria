@@ -1,6 +1,6 @@
 
 
-import { ServiceType } from '../types';
+import { ServiceType, ProcedureType } from '../types';
 
 export type CatalogCategory = 'SCHRIFTSAETZE' | 'TERMINE' | 'ENTSCHAEDIGUNG';
 
@@ -11,6 +11,7 @@ export interface CatalogEntry {
   full: string;
   category: CatalogCategory;
   tp: string; // TP1, TP2, TP3A, etc.
+  procedureTypes?: ProcedureType[]; // Für welche Verfahrensarten gilt dieser Eintrag? Leer = alle
 }
 
 export const CATEGORY_LABELS: Record<CatalogCategory, string> = {
@@ -37,10 +38,8 @@ export const SERVICE_CATALOG: CatalogEntry[] = [
   { id: 'tp1_einspruch', type: ServiceType.PLEADING_TP1, short: 'Einspruch (bloße Erhebung)', full: 'TP 1 - Einspruch gegen Zahlungsbefehl', category: 'SCHRIFTSAETZE', tp: 'TP1' },
   { id: 'tp1_fortsetzung', type: ServiceType.PLEADING_TP1, short: 'Fortsetzungsantrag', full: 'TP 1 - Fortsetzungsantrag (§ 398 ZPO)', category: 'SCHRIFTSAETZE', tp: 'TP1' },
   { id: 'tp1_berichtigung', type: ServiceType.PLEADING_TP1, short: 'Urteilsberichtigung', full: 'TP 1 - Antrag Urteilsberichtigung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_berufanm', type: ServiceType.PLEADING_TP1, short: 'Berufungsanmeldung (schriftl.)', full: 'TP 1 - Schriftliche Berufungsanmeldung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_ex_vollzug', type: ServiceType.PLEADING_TP1, short: 'Vollzugsantrag (Ex)', full: 'TP 1 - Vollzugsantrag (§ 249a EO)', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_ex_einstellung', type: ServiceType.PLEADING_TP1, short: 'Einstellungsantrag (Ex)', full: 'TP 1 - Einstellung / Einschränkung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_inso', type: ServiceType.PLEADING_TP1, short: 'Insolvenzeröffnungsantrag', full: 'TP 1 - Antrag Eröffnung Insolvenz', category: 'SCHRIFTSAETZE', tp: 'TP1' },
+  { id: 'tp1_berufanm', type: ServiceType.PLEADING_TP1, short: 'Berufungsanmeldung (schriftl.)', full: 'TP 1 - Schriftliche Berufungsanmeldung', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
+  { id: 'tp1_inso', type: ServiceType.PLEADING_TP1, short: 'Insolvenzeröffnungsantrag', full: 'TP 1 - Antrag Eröffnung Insolvenz', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.INSOLVENZ] },
 
   // --- TP 2 Schriftsätze ---
   { id: 'tp2_klage_kurz', type: ServiceType.PLEADING_TP2, short: 'Klage (kurz/Bestreitung)', full: 'TP 2 - Klage (kurz / Saldo / Kaufpreis)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
@@ -68,18 +67,43 @@ export const SERVICE_CATALOG: CatalogEntry[] = [
   { id: 'tp3b_bb', type: ServiceType.PLEADING_TP3B, short: 'Berufungsbeantwortung', full: 'TP 3B - Berufungs-/Rekursbeantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3B' },
   { id: 'tp3b_anschluss', type: ServiceType.PLEADING_TP3B_IA, short: 'Anschluss-RM (§ 473a ZPO)', full: 'TP 3B - Schriftsatz § 473a ZPO', category: 'SCHRIFTSAETZE', tp: 'TP3B' },
 
-  // --- TP 3C Schriftsätze (OGH / EuGH) ---
-  { id: 'tp3c_revision', type: ServiceType.PLEADING_TP3C, short: 'Revision / Revisionsrekurs', full: 'TP 3C - Revision / Revisionsrekurs', category: 'SCHRIFTSAETZE', tp: 'TP3C' },
-  { id: 'tp3c_rb', type: ServiceType.PLEADING_TP3C, short: 'Revisionsbeantwortung', full: 'TP 3C - Revisions-/Revisionsrekursbeantw.', category: 'SCHRIFTSAETZE', tp: 'TP3C' },
-  { id: 'tp3c_verband', type: ServiceType.PLEADING_TP3C, short: 'Verbandsklage Schriftsatz', full: 'TP 3C - Verbandsklage Schriftsatz', category: 'SCHRIFTSAETZE', tp: 'TP3C' },
+  // --- TP 3C Schriftsätze (OGH / EuGH) - Zivilprozess ---
+  { id: 'tp3c_revision', type: ServiceType.PLEADING_TP3C, short: 'Revision / Revisionsrekurs', full: 'TP 3C - Revision / Revisionsrekurs', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT, ProcedureType.INSOLVENZ] },
+  { id: 'tp3c_rb', type: ServiceType.PLEADING_TP3C, short: 'Revisionsbeantwortung', full: 'TP 3C - Revisions-/Revisionsrekursbeantw.', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT, ProcedureType.INSOLVENZ] },
+  { id: 'tp3c_verband', type: ServiceType.PLEADING_TP3C, short: 'Verbandsklage Schriftsatz', full: 'TP 3C - Verbandsklage Schriftsatz', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.ZIVILPROZESS] },
 
-  // --- TP 4 Strafsachen Schriftsätze ---
-  { id: 'tp4_pa_bg', type: ServiceType.PLEADING_TP4_PRIVATANKLAGE_BG, short: 'Privatanklage (BG)', full: 'TP 4 - Privatanklage BG (€ 6.000)', category: 'SCHRIFTSAETZE', tp: 'TP4' },
-  { id: 'tp4_pa_andere', type: ServiceType.PLEADING_TP4_PRIVATANKLAGE_ANDERE, short: 'Privatanklage (andere)', full: 'TP 4 - Privatanklage andere (€ 11.000)', category: 'SCHRIFTSAETZE', tp: 'TP4' },
-  { id: 'tp4_medien', type: ServiceType.PLEADING_TP4_MEDIENGESETZ, short: 'Mediengesetz', full: 'TP 4 - Mediengesetz (€ 11.000)', category: 'SCHRIFTSAETZE', tp: 'TP4' },
-  { id: 'tp4_privbet_bg', type: ServiceType.PLEADING_TP4_PRIVATBET_BG, short: 'Privatbeteiligter (BG)', full: 'TP 4 - Privatbeteiligter BG (€ 3.000)', category: 'SCHRIFTSAETZE', tp: 'TP4' },
-  { id: 'tp4_privbet_andere', type: ServiceType.PLEADING_TP4_PRIVATBET_ANDERE, short: 'Privatbeteiligter (andere)', full: 'TP 4 - Privatbeteiligter andere (€ 6.000)', category: 'SCHRIFTSAETZE', tp: 'TP4' },
-  { id: 'tp4_ausgeschl', type: ServiceType.PLEADING_TP4_AUSGESCHL_OEFF, short: 'Ausgeschl. Öffentlichkeit', full: 'TP 4 - Ausgeschlossene Öffentlichkeit', category: 'SCHRIFTSAETZE', tp: 'TP4' },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXEKUTIONSVERFAHREN (GGG TP 4)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // --- 1. Instanz (GGG TP 4 Z I) ---
+  { id: 'ex_antrag', type: ServiceType.PLEADING_TP2, short: 'Exekutionsantrag', full: 'GGG TP 4 Z I - Exekutionsantrag', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_fahrnisex', type: ServiceType.PLEADING_TP2, short: 'Fahrnisexekution', full: 'GGG TP 4 Z I - Fahrnisexekution § 249 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_forderungsex', type: ServiceType.PLEADING_TP2, short: 'Forderungsexekution', full: 'GGG TP 4 Z I - Forderungsexekution § 294 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_zwangsversteigerung', type: ServiceType.PLEADING_TP3A_I, short: 'Zwangsversteigerung', full: 'GGG TP 4 Z I - Zwangsversteigerung §§ 133 ff EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_zwangsverwaltung', type: ServiceType.PLEADING_TP3A_I, short: 'Zwangsverwaltung', full: 'GGG TP 4 Z I - Zwangsverwaltung §§ 97 ff EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_widerspruch', type: ServiceType.PLEADING_TP3A_I, short: 'Widerspruch § 37 EO', full: 'GGG TP 4 Z I - Widerspruch § 37 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_impugnation', type: ServiceType.PLEADING_TP3A_I, short: 'Impugnationsklage § 36 EO', full: 'GGG TP 4 Z I - Impugnationsklage § 36 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_opposition', type: ServiceType.PLEADING_TP3A_I, short: 'Oppositionsklage § 35 EO', full: 'GGG TP 4 Z I - Oppositionsklage § 35 EO', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_einwendungen', type: ServiceType.PLEADING_TP2, short: 'Einwendungen', full: 'GGG TP 4 Z I - Einwendungen gegen Exekution', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_aeusserung', type: ServiceType.PLEADING_TP2, short: 'Äußerung zu Einwendungen', full: 'GGG TP 4 Z I - Äußerung zu Einwendungen', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_vollzugsantrag', type: ServiceType.PLEADING_TP1, short: 'Vollzugsantrag § 249a EO', full: 'GGG TP 4 Z I - Vollzugsantrag § 249a EO', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_einstellung', type: ServiceType.PLEADING_TP1, short: 'Einstellungsantrag', full: 'GGG TP 4 Z I - Einstellung / Einschränkung', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_aufschiebung', type: ServiceType.PLEADING_TP2, short: 'Aufschiebungsantrag § 42 EO', full: 'GGG TP 4 Z I - Aufschiebungsantrag § 42 EO', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_drittschuldner', type: ServiceType.PLEADING_TP2, short: 'Drittschuldnererklärung', full: 'GGG TP 4 Z I - Drittschuldnererklärung', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.EXEKUTION] },
+
+  // --- 2. Instanz (GGG TP 4 Z II) ---
+  { id: 'ex_rekurs', type: ServiceType.PLEADING_TP3B, short: 'Rekurs (Exekution)', full: 'GGG TP 4 Z II - Rekurs im Exekutionsverfahren', category: 'SCHRIFTSAETZE', tp: 'TP3B', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_rekursbeantwortung', type: ServiceType.PLEADING_TP3B, short: 'Rekursbeantwortung (Exek.)', full: 'GGG TP 4 Z II - Rekursbeantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3B', procedureTypes: [ProcedureType.EXEKUTION] },
+
+  // --- 3. Instanz (GGG TP 4 Z III) ---
+  { id: 'ex_revisionsrekurs', type: ServiceType.PLEADING_TP3C, short: 'Revisionsrekurs (Exekution)', full: 'GGG TP 4 Z III - Revisionsrekurs', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_revisionsrekurs_beantwortung', type: ServiceType.PLEADING_TP3C, short: 'Revisionsrekursbeantw. (Exek.)', full: 'GGG TP 4 Z III - Revisionsrekursbeantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3C', procedureTypes: [ProcedureType.EXEKUTION] },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // HINWEIS: TP 4 Strafsachen (Privatanklage, Mediengesetz, Privatbeteiligte)
+  // werden im Straf-Modus separat behandelt und nicht im Zivil-Katalog angezeigt.
 
   // --- TP 5 Einfaches Schreiben ---
   // Fix: Use correct ServiceType PLEADING_TP5
@@ -93,31 +117,32 @@ export const SERVICE_CATALOG: CatalogEntry[] = [
   // TERMINE / TAGSATZUNGEN
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // --- TP 2 Tagsatzungen ---
-  { id: 'tp2_ts_erstreckt', type: ServiceType.HEARING_TP2_II, short: 'TS erstreckt', full: 'TP 2 - Erstreckte Tagsatzung', category: 'TERMINE', tp: 'TP2' },
-  { id: 'tp2_ts_vu', type: ServiceType.HEARING_TP2_II, short: 'TS VU/Vergleich/Anerkenntnis', full: 'TP 2 - TS VU / Vergleich / Anerkenntnis', category: 'TERMINE', tp: 'TP2' },
-  { id: 'tp2_ts_vergleich', type: ServiceType.HEARING_TP2_II, short: 'TS nur Vergleichszweck', full: 'TP 2 - TS Vergleichszweck', category: 'TERMINE', tp: 'TP2' },
-  { id: 'tp2_ts_inso', type: ServiceType.HEARING_TP2_II_INSOLVENCY, short: 'TS Insolvenz (Std.)', full: 'TP 2 - Gläubigervertreter TS Insolvenz', category: 'TERMINE', tp: 'TP2' },
+  // --- TP 2 Tagsatzungen (Zivilprozess) ---
+  { id: 'tp2_ts_erstreckt', type: ServiceType.HEARING_TP2_II, short: 'TS erstreckt', full: 'TP 2 - Erstreckte Tagsatzung', category: 'TERMINE', tp: 'TP2', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
+  { id: 'tp2_ts_vu', type: ServiceType.HEARING_TP2_II, short: 'TS VU/Vergleich/Anerkenntnis', full: 'TP 2 - TS VU / Vergleich / Anerkenntnis', category: 'TERMINE', tp: 'TP2', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
+  { id: 'tp2_ts_vergleich', type: ServiceType.HEARING_TP2_II, short: 'TS nur Vergleichszweck', full: 'TP 2 - TS Vergleichszweck', category: 'TERMINE', tp: 'TP2', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
+  { id: 'tp2_ts_inso', type: ServiceType.HEARING_TP2_II_INSOLVENCY, short: 'TS Insolvenz (Std.)', full: 'TP 2 - Gläubigervertreter TS Insolvenz', category: 'TERMINE', tp: 'TP2', procedureTypes: [ProcedureType.INSOLVENZ] },
 
-  // --- TP 3A Tagsatzungen ---
-  { id: 'tp3a_ts', type: ServiceType.HEARING_TP3A_II, short: 'Tagsatzung (Std.)', full: 'TP 3A - Tagsatzung (pro Stunde)', category: 'TERMINE', tp: 'TP3A' },
-  { id: 'tp3a_befund', type: ServiceType.INSPECTION_TP3A_III, short: 'Befundaufnahme SV (Std.)', full: 'TP 3A - Befundaufnahme SV (pro Stunde)', category: 'TERMINE', tp: 'TP3A' },
+  // --- TP 3A Tagsatzungen (Zivilprozess) ---
+  { id: 'tp3a_ts', type: ServiceType.HEARING_TP3A_II, short: 'Tagsatzung (Std.)', full: 'TP 3A - Tagsatzung (pro Stunde)', category: 'TERMINE', tp: 'TP3A', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT, ProcedureType.INSOLVENZ] },
+  { id: 'tp3a_befund', type: ServiceType.INSPECTION_TP3A_III, short: 'Befundaufnahme SV (Std.)', full: 'TP 3A - Befundaufnahme SV (pro Stunde)', category: 'TERMINE', tp: 'TP3A', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
 
-  // --- TP 3B Verhandlung (2. Instanz) ---
-  { id: 'tp3b_verhandlung', type: ServiceType.HEARING_TP3B_II, short: 'Verhandlung 2. Instanz (Std.)', full: 'TP 3B - Mündliche Verhandlung (pro Stunde)', category: 'TERMINE', tp: 'TP3B' },
+  // --- TP 3B Verhandlung 2. Instanz (Zivilprozess) ---
+  { id: 'tp3b_verhandlung', type: ServiceType.HEARING_TP3B_II, short: 'Verhandlung 2. Instanz (Std.)', full: 'TP 3B - Mündliche Verhandlung (pro Stunde)', category: 'TERMINE', tp: 'TP3B', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT, ProcedureType.INSOLVENZ] },
 
-  // --- TP 3C Verhandlungen (OGH / EuGH) ---
-  { id: 'tp3c_verhandlung', type: ServiceType.HEARING_TP3C_II, short: 'Verhandlung OGH (Std.)', full: 'TP 3C - Verhandlung OGH (pro Stunde)', category: 'TERMINE', tp: 'TP3C' },
-  { id: 'tp3c_eugh', type: ServiceType.HEARING_TP3C_III, short: 'EuGH-Verhandlung (Std.)', full: 'TP 3C - EuGH Vorabentscheidung (pro Stunde)', category: 'TERMINE', tp: 'TP3C' },
-  { id: 'tp3c_verband_vh', type: ServiceType.HEARING_TP3C_II, short: 'Verbandsklage Verhandlung (Std.)', full: 'TP 3C - Verbandsklage Verhandlung', category: 'TERMINE', tp: 'TP3C' },
+  // --- TP 3C Verhandlungen OGH (Zivilprozess) ---
+  { id: 'tp3c_verhandlung', type: ServiceType.HEARING_TP3C_II, short: 'Verhandlung OGH (Std.)', full: 'TP 3C - Verhandlung OGH (pro Stunde)', category: 'TERMINE', tp: 'TP3C', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT, ProcedureType.INSOLVENZ] },
+  { id: 'tp3c_eugh', type: ServiceType.HEARING_TP3C_III, short: 'EuGH-Verhandlung (Std.)', full: 'TP 3C - EuGH Vorabentscheidung (pro Stunde)', category: 'TERMINE', tp: 'TP3C', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp3c_verband_vh', type: ServiceType.HEARING_TP3C_II, short: 'Verbandsklage Verhandlung (Std.)', full: 'TP 3C - Verbandsklage Verhandlung', category: 'TERMINE', tp: 'TP3C', procedureTypes: [ProcedureType.ZIVILPROZESS] },
 
-  // --- TP 4 Strafsachen Verhandlungen ---
-  { id: 'tp4_pa_bg_vh', type: ServiceType.HEARING_TP4_PRIVATANKLAGE_BG, short: 'VH Privatanklage (BG)', full: 'TP 4 - Verhandlung Privatanklage BG', category: 'TERMINE', tp: 'TP4' },
-  { id: 'tp4_pa_andere_vh', type: ServiceType.HEARING_TP4_PRIVATANKLAGE_ANDERE, short: 'VH Privatanklage (andere)', full: 'TP 4 - Verhandlung Privatanklage andere', category: 'TERMINE', tp: 'TP4' },
-  { id: 'tp4_medien_vh', type: ServiceType.HEARING_TP4_MEDIENGESETZ, short: 'VH Mediengesetz', full: 'TP 4 - Verhandlung Mediengesetz', category: 'TERMINE', tp: 'TP4' },
-  { id: 'tp4_privbet_bg_vh', type: ServiceType.HEARING_TP4_PRIVATBET_BG, short: 'VH Privatbeteiligter (BG)', full: 'TP 4 - Verhandlung Privatbeteiligter BG', category: 'TERMINE', tp: 'TP4' },
-  { id: 'tp4_privbet_andere_vh', type: ServiceType.HEARING_TP4_PRIVATBET_ANDERE, short: 'VH Privatbeteiligter (andere)', full: 'TP 4 - Verhandlung Privatbeteiligter andere', category: 'TERMINE', tp: 'TP4' },
-  { id: 'tp4_ausgeschl_vh', type: ServiceType.HEARING_TP4_AUSGESCHL_OEFF, short: 'VH Ausgeschl. Öffentlichkeit', full: 'TP 4 - Verhandlung Ausgeschl. Öffentl.', category: 'TERMINE', tp: 'TP4' },
+  // --- Exekutionsverfahren Termine (GGG TP 4) ---
+  { id: 'ex_ts_impugnation', type: ServiceType.HEARING_TP3A_II, short: 'TS Impugnationsklage (Std.)', full: 'GGG TP 4 - Tagsatzung Impugnationsklage', category: 'TERMINE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_ts_opposition', type: ServiceType.HEARING_TP3A_II, short: 'TS Oppositionsklage (Std.)', full: 'GGG TP 4 - Tagsatzung Oppositionsklage', category: 'TERMINE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_ts_versteigerung', type: ServiceType.HEARING_TP3A_II, short: 'Versteigerungstermin (Std.)', full: 'GGG TP 4 - Versteigerungstermin', category: 'TERMINE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'ex_verh_rekurs', type: ServiceType.HEARING_TP3B_II, short: 'Rekursverhandlung (Std.)', full: 'GGG TP 4 Z II - Rekursverhandlung', category: 'TERMINE', tp: 'TP3B', procedureTypes: [ProcedureType.EXEKUTION] },
+
+  // --- TP 4 Strafsachen Verhandlungen (nur für Straf-Modus, hier nicht angezeigt) ---
+  // Diese werden im Straf-Modus separat behandelt und nicht im Zivil-Katalog angezeigt
 
   // --- TP 7 Kommission ---
   { id: 'tp7_kommission', type: ServiceType.HEARING_TP3A_II, short: 'Kommission (Std.)', full: 'TP 7 - Kommission (pro Stunde)', category: 'TERMINE', tp: 'TP7' },
@@ -126,10 +151,10 @@ export const SERVICE_CATALOG: CatalogEntry[] = [
   { id: 'tp8_besprechung', type: ServiceType.HEARING_TP3A_II, short: 'Besprechung (Std.)', full: 'TP 8 - Besprechung mit Partei/Gegner', category: 'TERMINE', tp: 'TP8' },
 
   // --- Zuwarten / Abberaumung ---
-  { id: 'zuwarten_tp2', type: ServiceType.WAITING_TIME, short: 'Zuwarten (TP 2)', full: 'TP 2 Anm 2 - Zeit des Zuwartens', category: 'TERMINE', tp: 'TP2' },
-  { id: 'zuwarten_tp3', type: ServiceType.WAITING_TIME, short: 'Zuwarten (TP 3)', full: 'TP 3 Anm 2 - Zeit des Zuwartens', category: 'TERMINE', tp: 'TP3' },
-  { id: 'abberaumt_tp2', type: ServiceType.CANCELLED_HEARING, short: 'Abberaumte TS (TP 2)', full: 'TP 2 Anm 3 - TS abberaumt', category: 'TERMINE', tp: 'TP2' },
-  { id: 'abberaumt_tp3', type: ServiceType.CANCELLED_HEARING, short: 'Abberaumte TS (TP 3)', full: 'TP 3 Anm 3 - TS abberaumt', category: 'TERMINE', tp: 'TP3' },
+  { id: 'zuwarten_tp2', type: ServiceType.WAITING_TIME, short: 'Zuwarten (TP 2)', full: 'TP 2 Anm 2 - Zeit des Zuwartens', category: 'TERMINE', tp: 'TP2', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
+  { id: 'zuwarten_tp3', type: ServiceType.WAITING_TIME, short: 'Zuwarten (TP 3)', full: 'TP 3 Anm 2 - Zeit des Zuwartens', category: 'TERMINE', tp: 'TP3', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT, ProcedureType.EXEKUTION] },
+  { id: 'abberaumt_tp2', type: ServiceType.CANCELLED_HEARING, short: 'Abberaumte TS (TP 2)', full: 'TP 2 Anm 3 - TS abberaumt', category: 'TERMINE', tp: 'TP2', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
+  { id: 'abberaumt_tp3', type: ServiceType.CANCELLED_HEARING, short: 'Abberaumte TS (TP 3)', full: 'TP 3 Anm 3 - TS abberaumt', category: 'TERMINE', tp: 'TP3', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT, ProcedureType.EXEKUTION] },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ENTSCHÄDIGUNG (TP 9)
@@ -141,15 +166,50 @@ export const SERVICE_CATALOG: CatalogEntry[] = [
   { id: 'tp9_versaeumnis', type: ServiceType.PLEADING_TP1, short: 'Versäumnis', full: 'TP 9 - Versäumnisentschädigung', category: 'ENTSCHAEDIGUNG', tp: 'TP9' },
 ];
 
-// Gruppierter Katalog nach Kategorie und TP
-export function getGroupedCatalog(): Record<CatalogCategory, Record<string, CatalogEntry[]>> {
+// Tarifposten die für alle Verfahrensarten gelten (auch ohne explizite procedureTypes)
+const UNIVERSAL_TPS = ['TP1', 'TP5', 'TP6', 'TP7', 'TP8', 'TP9'];
+
+// Katalog nach Verfahrensart filtern
+export function getFilteredCatalog(procedureType: ProcedureType): CatalogEntry[] {
+  // String-basierter Vergleich für Exekution (da EXEKUTION und EXECUTION denselben Wert haben)
+  const isExekution = String(procedureType) === String(ProcedureType.EXEKUTION);
+
+  return SERVICE_CATALOG.filter(entry => {
+    // Wenn explizit procedureTypes definiert sind, diese prüfen
+    if (entry.procedureTypes && entry.procedureTypes.length > 0) {
+      return entry.procedureTypes.some(pt =>
+        // String-basierter Vergleich für enum alias compatibility
+        String(pt) === String(procedureType)
+      );
+    }
+
+    // Universelle Tarifposten (TP1, TP5, TP6, TP7, TP8, TP9) gelten für alle
+    if (UNIVERSAL_TPS.includes(entry.tp)) {
+      return true;
+    }
+
+    // TP2, TP3A, TP3B, TP3C ohne procedureTypes:
+    // Bei Exekution ausblenden (da eigene Exekution-Einträge existieren)
+    if (isExekution) {
+      return false;
+    }
+
+    // Für alle anderen Verfahrensarten: Standardeinträge anzeigen
+    return true;
+  });
+}
+
+// Gruppierter Katalog nach Kategorie und TP (gefiltert nach Verfahrensart)
+export function getGroupedCatalog(procedureType?: ProcedureType): Record<CatalogCategory, Record<string, CatalogEntry[]>> {
   const grouped: Record<CatalogCategory, Record<string, CatalogEntry[]>> = {
     SCHRIFTSAETZE: {},
     TERMINE: {},
     ENTSCHAEDIGUNG: {}
   };
 
-  for (const entry of SERVICE_CATALOG) {
+  const entries = procedureType ? getFilteredCatalog(procedureType) : SERVICE_CATALOG;
+
+  for (const entry of entries) {
     if (!grouped[entry.category][entry.tp]) {
       grouped[entry.category][entry.tp] = [];
     }

@@ -34,7 +34,7 @@ import {
   StrafService
 } from './types';
 import { calculateCosts, formatEuro } from './lib/calculator';
-import { SERVICE_CATALOG, getGroupedCatalog, CATEGORY_LABELS, CatalogCategory } from './lib/catalog';
+import { SERVICE_CATALOG, getGroupedCatalog, getFilteredCatalog, CATEGORY_LABELS, CatalogCategory } from './lib/catalog';
 import { generateKostenverzeichnisPDF } from './lib/pdfGenerator';
 import { deriveGGGWithLabel } from './lib/ggg-derive';
 import { getGGG } from './lib/ggg';
@@ -401,15 +401,9 @@ const App: React.FC = () => {
   const gggInfo = useMemo(() => {
     if (!autoGgg || services.length === 0) return null;
 
-    const partySurchargePercent = additionalParties === 1 ? 10 :
-                                  additionalParties === 2 ? 15 :
-                                  additionalParties === 3 ? 20 :
-                                  additionalParties === 4 ? 25 :
-                                  additionalParties === 5 ? 30 :
-                                  additionalParties >= 9 ? 50 : 0;
-
     const derived = deriveGGGWithLabel(services, procedureType);
-    const result = getGGG(derived.tarifpost, bmgl * 100, partySurchargePercent);
+    // getGGG erwartet die ANZAHL der Streitgenossen, nicht den Prozentwert
+    const result = getGGG(derived.tarifpost, bmgl * 100, additionalParties);
 
     return {
       tarifpost: derived.label,
@@ -477,13 +471,16 @@ const App: React.FC = () => {
     setServices(sorted);
   };
 
-  const filteredCatalog = SERVICE_CATALOG.filter(c =>
+  // Katalog nach Verfahrensart filtern
+  const procedureCatalog = getFilteredCatalog(procedureType);
+
+  const filteredCatalog = procedureCatalog.filter(c =>
     c.full.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.short.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.tp.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const groupedCatalog = getGroupedCatalog();
+  const groupedCatalog = getGroupedCatalog(procedureType);
 
   // --- Straf-Handlers ---
   const addStrafService = (leistungType: StrafLeistungType) => {
@@ -1326,6 +1323,60 @@ const App: React.FC = () => {
                 {caseMode === CaseMode.CIVIL && (
                   <>
                     {/* === ZIVIL-MODUS (BESTEHEND) === */}
+                    {/* Verfahrensart - Segmented Control */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">
+                        <Layers className="h-3 w-3 inline mr-1" /> Verfahrensart
+                      </label>
+                      <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl">
+                        <button
+                          onClick={() => setProcedureType(ProcedureType.ZIVILPROZESS)}
+                          className={`px-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                            procedureType === ProcedureType.ZIVILPROZESS
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                          }`}
+                        >
+                          Prozess
+                        </button>
+                        <button
+                          onClick={() => setProcedureType(ProcedureType.EXEKUTION)}
+                          className={`px-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                            procedureType === ProcedureType.EXEKUTION
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                          }`}
+                        >
+                          Exekution
+                        </button>
+                        <button
+                          onClick={() => setProcedureType(ProcedureType.AUSSERSTREIT)}
+                          className={`px-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                            procedureType === ProcedureType.AUSSERSTREIT
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                          }`}
+                        >
+                          Außerstreit
+                        </button>
+                        <button
+                          onClick={() => setProcedureType(ProcedureType.INSOLVENZ)}
+                          className={`px-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                            procedureType === ProcedureType.INSOLVENZ
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                          }`}
+                        >
+                          Insolvenz
+                        </button>
+                      </div>
+                      {procedureType === ProcedureType.EXEKUTION && (
+                        <div className="mt-2 text-[10px] text-blue-600 font-bold">
+                          GGG nach TP 4 (Exekutionsverfahren)
+                        </div>
+                      )}
+                    </div>
+
                     {/* Bemessungsgrundlage */}
                     <div>
                       <div className="flex justify-between items-center mb-2">
@@ -1562,7 +1613,7 @@ const App: React.FC = () => {
                               <div className="text-[11px] font-black text-blue-400 uppercase tracking-widest px-2 py-1 mb-1">
                                 Schriftsätze
                               </div>
-                              {SERVICE_CATALOG.filter(c => c.category === 'SCHRIFTSAETZE').map(cat => (
+                              {procedureCatalog.filter(c => c.category === 'SCHRIFTSAETZE').map(cat => (
                                 <button
                                   key={cat.id}
                                   onClick={() => {
@@ -1586,7 +1637,7 @@ const App: React.FC = () => {
                               <div className="text-[11px] font-black text-amber-400 uppercase tracking-widest px-2 py-1 mt-3 mb-1">
                                 Termine / Tagsatzungen
                               </div>
-                              {SERVICE_CATALOG.filter(c => c.category === 'TERMINE').map(cat => (
+                              {procedureCatalog.filter(c => c.category === 'TERMINE').map(cat => (
                                 <button
                                   key={cat.id}
                                   onClick={() => {
@@ -1610,7 +1661,7 @@ const App: React.FC = () => {
                               <div className="text-[11px] font-black text-emerald-400 uppercase tracking-widest px-2 py-1 mt-3 mb-1">
                                 Entschädigung (TP 9)
                               </div>
-                              {SERVICE_CATALOG.filter(c => c.category === 'ENTSCHAEDIGUNG').map(cat => (
+                              {procedureCatalog.filter(c => c.category === 'ENTSCHAEDIGUNG').map(cat => (
                                 <button
                                   key={cat.id}
                                   onClick={() => {
@@ -2256,7 +2307,7 @@ const App: React.FC = () => {
                             </div>
                             <div className="space-y-0.5">
                               {(['TP1', 'TP2', 'TP3A', 'TP3B', 'TP3C', 'TP4', 'TP5', 'TP6'] as const).map(tp => {
-                                const entries = SERVICE_CATALOG.filter(c => c.category === 'SCHRIFTSAETZE' && c.tp === tp);
+                                const entries = procedureCatalog.filter(c => c.category === 'SCHRIFTSAETZE' && c.tp === tp);
                                 if (entries.length === 0) return null;
                                 return (
                                   <div key={tp} className="mb-1">
@@ -2287,7 +2338,7 @@ const App: React.FC = () => {
                             </div>
                             <div className="space-y-0.5">
                               {(['TP2', 'TP3A', 'TP3B', 'TP3C', 'TP4', 'TP7', 'TP8', 'TP3'] as const).map(tp => {
-                                const entries = SERVICE_CATALOG.filter(c => c.category === 'TERMINE' && c.tp === tp);
+                                const entries = procedureCatalog.filter(c => c.category === 'TERMINE' && c.tp === tp);
                                 if (entries.length === 0) return null;
                                 return (
                                   <div key={tp} className="mb-1">
@@ -2317,7 +2368,7 @@ const App: React.FC = () => {
                               Entschädigung (TP 9)
                             </div>
                             <div className="space-y-0.5">
-                              {SERVICE_CATALOG.filter(c => c.category === 'ENTSCHAEDIGUNG').map(entry => (
+                              {procedureCatalog.filter(c => c.category === 'ENTSCHAEDIGUNG').map(entry => (
                                 <button
                                   key={entry.id}
                                   onClick={() => addService(entry)}
