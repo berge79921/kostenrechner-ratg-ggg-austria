@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { TotalResult, ProcedureType, CaseMode, CaseMetadata, ExekutionMetadata } from '../types';
+import { TotalResult, ProcedureType, CaseMode, CaseMetadata, ExekutionMetadata, ZivilprozessMetadata } from '../types';
 import { formatEuro } from './calculator';
 
 // Druckoptionen für PDF-Export
@@ -32,8 +32,17 @@ export interface PDFOptions {
   caseMetadata?: CaseMetadata;
   // Exekution-Daten
   exekutionMetadata?: ExekutionMetadata;
+  // Zivilprozess-Daten (eingehende Klage)
+  zivilprozessMetadata?: ZivilprozessMetadata;
   // Druckoptionen
   printOptions?: PrintOptions;
+  // Tagsatzungs-Variante (für Verhandlung zum Einkreisen)
+  tagsatzungVariante?: boolean;
+  tagsatzungDatum?: string;
+  // Tagsatzungs-Berechnungsdaten (TP 3A Basis, ES-Faktor)
+  tp3aBasis?: number;  // in Cents
+  esMultiplier?: number;  // 1 = einfach, 2 = doppelt
+  isAuswaerts?: boolean;  // auswärts = doppelter ES
 }
 
 export function generateKostenverzeichnisPDF(
@@ -47,11 +56,31 @@ export function generateKostenverzeichnisPDF(
 ) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const caseMode = options?.caseMode ?? CaseMode.CIVIL;
   const meta = options?.caseMetadata;
   const print = options?.printOptions || { printTiteldaten: true, printExekutionsdaten: true, printKanzlei: true };
 
   let yPos = 20;
+
+  // --- Kanzlei-Header (dezent, oben rechts auf erster Seite) ---
+  if (meta?.kanzleiName && print.printKanzlei) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const kanzleiLines: string[] = [meta.kanzleiName];
+    if (meta.kanzleiStrasse) kanzleiLines.push(meta.kanzleiStrasse);
+    const kanzleiOrt = [meta.kanzleiPlz, meta.kanzleiOrt].filter(Boolean).join(' ');
+    if (kanzleiOrt) kanzleiLines.push(kanzleiOrt);
+
+    // Rechtsbündig oben
+    kanzleiLines.forEach((line, i) => {
+      doc.text(line, pageWidth - 14, 10 + (i * 4), { align: 'right' });
+    });
+    doc.setTextColor(0);
+    // Startposition etwas nach unten wenn Kanzlei-Header vorhanden
+    yPos = Math.max(20, 10 + kanzleiLines.length * 4 + 6);
+  }
 
   // --- Falldaten-Header (wenn vorhanden) ---
   if (meta && (meta.geschaeftszahl || meta.parteiName || meta.kanzleiName)) {
@@ -75,42 +104,208 @@ export function generateKostenverzeichnisPDF(
       yPos += 8;
     }
 
-    // Zwei-Spalten: Partei / Kanzlei - nur wenn entsprechende Druckoption aktiv
-    const showPartei = print.printTiteldaten && meta.parteiName;
-    const showKanzlei = print.printKanzlei && meta.kanzleiName;
+    // === ZIVILPROZESS: Dynamisch basierend auf vertretenePartei ===
+    const zivil = options?.zivilprozessMetadata;
+    const isZivilprozess = procedureType === ProcedureType.ZIVILPROZESS && zivil;
 
-    if (showPartei || showKanzlei) {
+    if (isZivilprozess && print.printExekutionsdaten) {
+      const wirSindKlaeger = zivil.vertretenePartei === 'klaeger';
+
+      // --- 1. KLÄGER + KLAGEVERTRETER ---
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      if (showPartei) doc.text('Partei:', 14, yPos);
-      if (showKanzlei) doc.text('Vertreten durch:', pageWidth / 2 + 5, yPos);
+      doc.text('Kläger:', 14, yPos);
+
+      // Klagevertreter: Wenn wir Kläger sind → unsere Kanzlei, sonst aus zivil
+      const kvName = wirSindKlaeger ? meta.kanzleiName : zivil.klagevertreterName;
+      const kvStrasse = wirSindKlaeger ? meta.kanzleiStrasse : zivil.klagevertreterStrasse;
+      const kvPlz = wirSindKlaeger ? meta.kanzleiPlz : zivil.klagevertreterPlz;
+      const kvOrt = wirSindKlaeger ? meta.kanzleiOrt : zivil.klagevertreterOrt;
+      const kvCode = wirSindKlaeger ? '' : zivil.klagevertreterCode;
+
+      if (kvName && print.printKanzlei) doc.text('Klagevertreter:', pageWidth / 2 + 5, yPos);
       yPos += 5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
 
-      // Partei
-      if (showPartei && meta.parteiName) doc.text(meta.parteiName, 14, yPos);
-      // Kanzlei
-      if (showKanzlei && meta.kanzleiName) doc.text(meta.kanzleiName, pageWidth / 2 + 5, yPos);
+      // Kläger - Name (immer aus zivil)
+      if (zivil.klaegerName) doc.text(zivil.klaegerName, 14, yPos);
+      // Klagevertreter - Name
+      if (kvName && print.printKanzlei) doc.text(kvName, pageWidth / 2 + 5, yPos);
       yPos += 5;
 
-      if (showPartei && meta.parteiStrasse) doc.text(meta.parteiStrasse, 14, yPos);
-      if (showKanzlei && meta.kanzleiStrasse) doc.text(meta.kanzleiStrasse, pageWidth / 2 + 5, yPos);
+      // Kläger - Straße
+      if (zivil.klaegerStrasse) doc.text(zivil.klaegerStrasse, 14, yPos);
+      // Klagevertreter - Straße
+      if (kvStrasse && print.printKanzlei) doc.text(kvStrasse, pageWidth / 2 + 5, yPos);
       yPos += 5;
 
-      const parteiOrt = [meta.parteiPlz, meta.parteiOrt].filter(Boolean).join(' ');
-      const parteiOrtMitLand = meta.parteiLand ? `${parteiOrt} (${meta.parteiLand})` : parteiOrt;
-      const kanzleiOrt = [meta.kanzleiPlz, meta.kanzleiOrt].filter(Boolean).join(' ');
-      if (showPartei && parteiOrt) doc.text(parteiOrtMitLand, 14, yPos);
-      if (showKanzlei && kanzleiOrt) doc.text(kanzleiOrt, pageWidth / 2 + 5, yPos);
+      // Kläger - PLZ/Ort
+      const klaegerOrtStr = [zivil.klaegerPlz, zivil.klaegerOrt].filter(Boolean).join(' ');
+      if (klaegerOrtStr) {
+        const ortMitLand = zivil.klaegerLand ? `${klaegerOrtStr} (${zivil.klaegerLand})` : klaegerOrtStr;
+        doc.text(ortMitLand, 14, yPos);
+      }
+      // Klagevertreter - PLZ/Ort + R-Code
+      const kvOrtStr = [kvPlz, kvOrt].filter(Boolean).join(' ');
+      if ((kvOrtStr || kvCode) && print.printKanzlei) {
+        const kvText = [kvOrtStr, kvCode ? `(${kvCode})` : ''].filter(Boolean).join(' ');
+        doc.text(kvText, pageWidth / 2 + 5, yPos);
+      }
+      yPos += 5;
+
+      // Kläger - Geburtsdatum
+      if (zivil.klaegerGeburtsdatum) {
+        doc.text(`geb. ${zivil.klaegerGeburtsdatum}`, 14, yPos);
+        yPos += 5;
+      }
+
+      yPos += 3;
+
+      // --- 2. BEKLAGTE + BEKLAGTENVERTRETER ---
+      // Beklagte: Name aus zivil (oder meta.parteiName wenn wir Beklagte sind)
+      const beklName = zivil.beklagterName || (wirSindKlaeger ? '' : meta.parteiName);
+      const beklStrasse = zivil.beklagterStrasse || (wirSindKlaeger ? '' : meta.parteiStrasse);
+      const beklPlz = zivil.beklagterPlz || (wirSindKlaeger ? '' : meta.parteiPlz);
+      const beklOrt = zivil.beklagterOrt || (wirSindKlaeger ? '' : meta.parteiOrt);
+      const beklLand = zivil.beklagterLand || (wirSindKlaeger ? '' : meta.parteiLand);
+      const beklGeb = zivil.beklagterGeburtsdatum || '';
+
+      // Beklagtenvertreter: Wenn wir Beklagte sind → unsere Kanzlei, sonst aus zivil
+      const bvName = wirSindKlaeger ? zivil.beklagtenvertreterName : meta.kanzleiName;
+      const bvStrasse = wirSindKlaeger ? zivil.beklagtenvertreterStrasse : meta.kanzleiStrasse;
+      const bvPlz = wirSindKlaeger ? zivil.beklagtenvertreterPlz : meta.kanzleiPlz;
+      const bvOrt = wirSindKlaeger ? zivil.beklagtenvertreterOrt : meta.kanzleiOrt;
+      const bvCode = wirSindKlaeger ? zivil.beklagtenvertreterCode : '';
+
+      const showBeklagte = print.printTiteldaten && beklName;
+      const showBeklagtenvertreter = print.printKanzlei && bvName;
+
+      if (showBeklagte || showBeklagtenvertreter) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        if (showBeklagte) doc.text('Beklagte:', 14, yPos);
+        if (showBeklagtenvertreter) doc.text('Beklagtenvertreter:', pageWidth / 2 + 5, yPos);
+        yPos += 5;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+
+        // Beklagte - Name
+        if (showBeklagte) doc.text(beklName, 14, yPos);
+        // Beklagtenvertreter - Name
+        if (showBeklagtenvertreter) doc.text(bvName, pageWidth / 2 + 5, yPos);
+        yPos += 5;
+
+        if (showBeklagte && beklStrasse) doc.text(beklStrasse, 14, yPos);
+        if (showBeklagtenvertreter && bvStrasse) doc.text(bvStrasse, pageWidth / 2 + 5, yPos);
+        yPos += 5;
+
+        const beklOrtStr = [beklPlz, beklOrt].filter(Boolean).join(' ');
+        const beklOrtMitLand = beklLand ? `${beklOrtStr} (${beklLand})` : beklOrtStr;
+        const bvOrtStr = [bvPlz, bvOrt].filter(Boolean).join(' ');
+        if (showBeklagte && beklOrtStr) doc.text(beklOrtMitLand, 14, yPos);
+        if (showBeklagtenvertreter) {
+          const bvText = [bvOrtStr, bvCode ? `(${bvCode})` : ''].filter(Boolean).join(' ');
+          if (bvText) doc.text(bvText, pageWidth / 2 + 5, yPos);
+        }
+        yPos += 5;
+
+        // Beklagte - Geburtsdatum
+        if (showBeklagte && beklGeb) {
+          doc.text(`geb. ${beklGeb}`, 14, yPos);
+          yPos += 5;
+        }
+      }
+
+      yPos += 3;
+
+      // --- 3. VERFAHREN + FORDERUNG ---
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Verfahren:', 14, yPos);
+      doc.text('Forderung:', pageWidth / 2 + 5, yPos);
+      yPos += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+
+      // Verfahren - Art + GZ
+      const verfahrenText = [zivil.klageArt, zivil.klageGZ].filter(Boolean).join(' ');
+      if (verfahrenText) doc.text(verfahrenText, 14, yPos);
+      // Forderung - Kapital
+      const kapitalText = zivil.kapitalforderung > 0 ? `Kapital: ${formatEuro(zivil.kapitalforderung * 100)}` : '';
+      if (kapitalText) doc.text(kapitalText, pageWidth / 2 + 5, yPos);
+      yPos += 5;
+
+      // Verfahren - Einbringungsdatum
+      if (zivil.einbringungsDatum || zivil.fallcode) {
+        const datumText = [
+          zivil.einbringungsDatum ? `Eingebracht: ${zivil.einbringungsDatum}` : '',
+          zivil.fallcode ? `Fallcode: ${zivil.fallcode}` : ''
+        ].filter(Boolean).join(' | ');
+        doc.text(datumText, 14, yPos);
+      }
+      // Forderung - Zinsen
+      if (zivil.zinsenProzent > 0 && zivil.zinsenAb) {
+        doc.text(`+ ${zivil.zinsenProzent}% Zinsen seit ${zivil.zinsenAb}`, pageWidth / 2 + 5, yPos);
+      }
+      yPos += 5;
+
+      // Verfahren - Klagegegenstand
+      if (zivil.klagegegenstand) {
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(zivil.klagegegenstand, 14, yPos);
+        doc.setTextColor(0);
+        doc.setFontSize(10);
+        yPos += 5;
+      }
+
+      // Trennlinie nach Zivilprozessdaten
+      yPos += 3;
+      doc.setDrawColor(200);
+      doc.line(14, yPos, pageWidth - 14, yPos);
+      yPos += 8;
+
+    } else if (!isZivilprozess) {
+      // === NICHT-ZIVILPROZESS: Standard-Layout (Partei + Kanzlei) ===
+      const showPartei = print.printTiteldaten && meta.parteiName;
+      const showKanzlei = print.printKanzlei && meta.kanzleiName;
+
+      if (showPartei || showKanzlei) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        if (showPartei) doc.text('Partei:', 14, yPos);
+        if (showKanzlei) doc.text('Vertreten durch:', pageWidth / 2 + 5, yPos);
+        yPos += 5;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+
+        // Partei
+        if (showPartei && meta.parteiName) doc.text(meta.parteiName, 14, yPos);
+        // Kanzlei
+        if (showKanzlei && meta.kanzleiName) doc.text(meta.kanzleiName, pageWidth / 2 + 5, yPos);
+        yPos += 5;
+
+        if (showPartei && meta.parteiStrasse) doc.text(meta.parteiStrasse, 14, yPos);
+        if (showKanzlei && meta.kanzleiStrasse) doc.text(meta.kanzleiStrasse, pageWidth / 2 + 5, yPos);
+        yPos += 5;
+
+        const parteiOrt = [meta.parteiPlz, meta.parteiOrt].filter(Boolean).join(' ');
+        const parteiOrtMitLand = meta.parteiLand ? `${parteiOrt} (${meta.parteiLand})` : parteiOrt;
+        const kanzleiOrt = [meta.kanzleiPlz, meta.kanzleiOrt].filter(Boolean).join(' ');
+        if (showPartei && parteiOrt) doc.text(parteiOrtMitLand, 14, yPos);
+        if (showKanzlei && kanzleiOrt) doc.text(kanzleiOrt, pageWidth / 2 + 5, yPos);
+        yPos += 8;
+      }
+
+      // Trennlinie
+      doc.setDrawColor(200);
+      doc.line(14, yPos, pageWidth - 14, yPos);
       yPos += 8;
     }
-
-    // Trennlinie
-    doc.setDrawColor(200);
-    doc.line(14, yPos, pageWidth - 14, yPos);
-    yPos += 8;
 
     // --- Exekution-spezifische Daten (nur wenn printExekutionsdaten aktiv) ---
     const exek = options?.exekutionMetadata;
@@ -324,15 +519,24 @@ export function generateKostenverzeichnisPDF(
     }
   });
 
+  // Bei Tagsatzungs-Variante: "A. BEREITS ERBRACHTE LEISTUNGEN" als Überschrift
+  const isTagsatzungVariante = options?.tagsatzungVariante === true;
+  if (isTagsatzungVariante) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('A. BEREITS ERBRACHTE LEISTUNGEN', 14, yPos + 4);
+    yPos += 4;
+  }
+
   // Table Generation using autoTable direct function call (ESM safe)
   autoTable(doc, {
     startY: yPos + 8,
     head: [['Datum', 'Leistung / Position', 'Gesetzliche Basis', 'Betrag']],
     body: tableData,
     theme: 'striped',
-    headStyles: { 
-      fillColor: [30, 41, 59], 
-      textColor: [255, 255, 255], 
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
       fontStyle: 'bold',
       fontSize: 9
     },
@@ -342,44 +546,269 @@ export function generateKostenverzeichnisPDF(
       2: { cellWidth: 45 },
       3: { cellWidth: 35, halign: 'right' }
     },
-    styles: { 
-      fontSize: 8, 
-      cellPadding: 3, 
+    styles: {
+      fontSize: 8,
+      cellPadding: 3,
       font: 'helvetica',
       valign: 'middle'
     },
     margin: { left: 14, right: 14 }
   });
 
-  // Summary Logic
-  const finalY = (doc as any).lastAutoTable.finalY + 12;
-  const rightAlignX = pageWidth - 14;
-  const labelX = pageWidth - 95;
+  let summaryY = (doc as any).lastAutoTable.finalY + 12;
+  const bottomMargin = 25;
 
-  doc.setDrawColor(200);
-  doc.line(labelX, finalY - 4, rightAlignX, finalY - 4);
+  // ====== TAGSATZUNGS-VARIANTE: B. Zwischensumme + C. Varianten-Tabelle ======
+  if (isTagsatzungVariante) {
+    const tp3aBasis = options?.tp3aBasis || 0;
+    const esMultiplier = options?.esMultiplier ?? 2;  // Default: doppelter ES (0 = Einzelabrechnung)
+    const isAuswaerts = options?.isAuswaerts ?? true;
+    const tagsatzungDatum = options?.tagsatzungDatum || new Date().toLocaleDateString('de-AT');
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Verdienst Netto:', labelX, finalY);
-  doc.text(formatEuro(results.netCents), rightAlignX, finalY, { align: 'right' });
+    // Honorar netto = alle Honorar-Zeilen inkl. ERV (ohne GGG/Barauslagen)
+    // ERV ist USt-pflichtig und bereits in netCents enthalten (§ 23a RATG)
+    const honorarNettoCents = results.netCents;
 
-  doc.text(`Umsatzsteuer (${isVatFree ? '0' : '20'}%):`, labelX, finalY + 7);
-  doc.text(formatEuro(results.vatCents), rightAlignX, finalY + 7, { align: 'right' });
+    // B. ZWISCHENSUMME
+    const zwischensummeHeight = 40;
+    if (summaryY + zwischensummeHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      summaryY = 20;
+    }
 
-  doc.text('Barauslagen / GGG:', labelX, finalY + 14);
-  doc.text(formatEuro(results.gggCents), rightAlignX, finalY + 14, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('B. ZWISCHENSUMME (bisher)', 14, summaryY);
+    summaryY += 6;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text('GESAMTSUMME:', labelX, finalY + 25);
-  doc.text(formatEuro(results.totalCents), rightAlignX, finalY + 25, { align: 'right' });
+    // GGG-Pauschalgebühren (ohne USt!)
+    const gggCents = results.gggCents;
 
-  // Legal Disclaimer
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(150);
-  doc.text('Dies ist eine softwaregenerierte Kostenaufstellung auf Basis der RATG/GGG Logik. Keine Gewähr für Fehlerfreiheit.', 14, doc.internal.pageSize.getHeight() - 10);
+    autoTable(doc, {
+      startY: summaryY,
+      head: [['Position', 'Betrag']],
+      body: [
+        ['Honorar netto inkl. ERV (A)', formatEuro(honorarNettoCents)],
+        ['Pauschalgebühr GGG (ohne USt)', formatEuro(gggCents)],
+      ],
+      theme: 'plain',
+      headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9 },
+      columnStyles: { 0: { cellWidth: 100 }, 1: { cellWidth: 50, halign: 'right' } },
+      styles: { fontSize: 9, cellPadding: 3 },
+      margin: { left: 14, right: 14 }
+    });
+
+    summaryY = (doc as any).lastAutoTable.finalY + 12;
+
+    // C. TAGSATZUNG VARIANTEN (1-6 Stunden)
+    const variantenHeight = 100;
+    if (summaryY + variantenHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      summaryY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(`C. TAGSATZUNG VOM ${tagsatzungDatum} – VARIANTEN ZUM EINKREISEN`, 14, summaryY);
+    summaryY += 6;
+
+    // Berechnung der Varianten (1-6 Stunden)
+    // TP 3A II: 1. Stunde = Basis, jede weitere = Basis/2
+    // ES-Berechnung nach RATG § 23:
+    // - esMultiplier = 0: Einzelabrechnung (kein ES)
+    // - esMultiplier = 1: Einfacher ES (50%)
+    // - esMultiplier = 2: Doppelter ES (100%, bei auswärts +50% pro weitere Std)
+    const berechnungen: { stunden: number; tagBasis: number; tagWeitere: number; es: number; esProz: number }[] = [];
+    const hatES = esMultiplier > 0;
+    const basisESProz = esMultiplier === 2 ? 100 : (esMultiplier === 1 ? 50 : 0);
+    // Aufschlag nur bei doppeltem ES + auswärts
+    const aufschlagProStd = (esMultiplier === 2 && isAuswaerts) ? 50 : 0;
+
+    for (let std = 1; std <= 6; std++) {
+      const tagBasis = tp3aBasis;  // 1. Stunde
+      const tagWeitere = (std - 1) * Math.round(tp3aBasis / 2);  // weitere Stunden
+      // ES: Basis-% + Aufschlag pro weitere Stunde (nur bei doppelt + auswärts)
+      const esProz = hatES ? (basisESProz + (std - 1) * aufschlagProStd) : 0;
+      const esBase = tagBasis + tagWeitere;
+      const es = hatES ? Math.round(esBase * esProz / 100) : 0;
+      berechnungen.push({ stunden: std, tagBasis, tagWeitere, es, esProz });
+    }
+
+    // Varianten-Tabelle Header
+    const variantenHead = [
+      '',
+      '1 Std', '2 Std', '3 Std', '4 Std', '5 Std', '6 Std'
+    ];
+
+    // Berechnung der Zeilen
+    const variantenBody: any[][] = [];
+
+    // Zeile: Bisheriges Honorar (netto)
+    variantenBody.push([
+      'Bisheriges Honorar (netto)',
+      ...berechnungen.map(() => formatEuro(honorarNettoCents))
+    ]);
+
+    // Zeile: Tagsatzung 1. Std
+    variantenBody.push([
+      `Tagsatzung ${tagsatzungDatum}, 1. Std`,
+      ...berechnungen.map(b => formatEuro(b.tagBasis))
+    ]);
+
+    // Zeile: Tagsatzung weitere Std
+    variantenBody.push([
+      `Tagsatzung ${tagsatzungDatum}, weitere Std`,
+      ...berechnungen.map(b => b.tagWeitere > 0 ? formatEuro(b.tagWeitere) : '—')
+    ]);
+
+    // Zeile: ES (nur wenn ES aktiv)
+    if (hatES) {
+      const esTyp = esMultiplier === 2 ? 'doppelt' : 'einfach';
+      const esLabel = (esMultiplier === 2 && isAuswaerts) ? `ES (${esTyp}, auswärts)` : `ES (${esTyp})`;
+      variantenBody.push([
+        esLabel,
+        ...berechnungen.map(b => `${formatEuro(b.es)} (${b.esProz}%)`)
+      ]);
+    } else {
+      // Einzelabrechnung - kein ES
+      variantenBody.push([
+        { content: 'Einzelabrechnung (kein ES)', styles: { textColor: [150, 150, 150], fontStyle: 'italic' } },
+        ...berechnungen.map(() => ({ content: '—', styles: { textColor: [150, 150, 150] } }))
+      ]);
+    }
+
+    // Zeile: = Honorar gesamt (netto)
+    variantenBody.push([
+      { content: '= Honorar gesamt (netto)', styles: { fontStyle: 'bold' } },
+      ...berechnungen.map(b => {
+        const gesamt = honorarNettoCents + b.tagBasis + b.tagWeitere + b.es;
+        return { content: formatEuro(gesamt), styles: { fontStyle: 'bold' } };
+      })
+    ]);
+
+    // Zeile: + 20% USt
+    variantenBody.push([
+      '+ 20% USt',
+      ...berechnungen.map(b => {
+        const gesamt = honorarNettoCents + b.tagBasis + b.tagWeitere + b.es;
+        const ust = Math.round(gesamt * 0.2);
+        return formatEuro(ust);
+      })
+    ]);
+
+    // Zeile: = RECHNUNGSBETRAG BRUTTO (Honorar)
+    variantenBody.push([
+      { content: '= Honorar brutto', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+      ...berechnungen.map(b => {
+        const gesamt = honorarNettoCents + b.tagBasis + b.tagWeitere + b.es;
+        const brutto = Math.round(gesamt * 1.2);
+        return { content: formatEuro(brutto), styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } };
+      })
+    ]);
+
+    // ERV ist bereits in Honorar netto enthalten und wird MIT USt berechnet (§ 23a RATG)
+    // Daher keine separate ERV-Zeile hier!
+
+    // Zeile: + Pauschalgebühr GGG (ohne USt!)
+    if (gggCents > 0) {
+      variantenBody.push([
+        '+ Pauschalgebühr GGG',
+        ...berechnungen.map(() => formatEuro(gggCents))
+      ]);
+    }
+
+    // Zeile: = GESAMTSUMME (Honorar brutto + GGG, ERV bereits in Honorar enthalten)
+    variantenBody.push([
+      { content: '= GESAMTSUMME', styles: { fontStyle: 'bold', fillColor: [30, 41, 59], textColor: [255, 255, 255] } },
+      ...berechnungen.map(b => {
+        const gesamt = honorarNettoCents + b.tagBasis + b.tagWeitere + b.es;
+        const brutto = Math.round(gesamt * 1.2);
+        const gesamtsumme = brutto + gggCents;  // ERV bereits in brutto enthalten (mit USt)
+        return { content: formatEuro(gesamtsumme), styles: { fontStyle: 'bold', fillColor: [30, 41, 59], textColor: [255, 255, 255] } };
+      })
+    ]);
+
+    autoTable(doc, {
+      startY: summaryY,
+      head: [variantenHead],
+      body: variantenBody,
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 55 },
+        1: { cellWidth: 22, halign: 'right' },
+        2: { cellWidth: 22, halign: 'right' },
+        3: { cellWidth: 22, halign: 'right' },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 22, halign: 'right' },
+        6: { cellWidth: 22, halign: 'right' },
+      },
+      styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
+      margin: { left: 14, right: 14 }
+    });
+
+    summaryY = (doc as any).lastAutoTable.finalY + 8;
+
+    // Hinweis zum Einkreisen
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100);
+    doc.text('Tatsächliche Dauer bitte einkreisen. GGG-Pauschalgebühren werden vom Gericht vorgeschrieben.', 14, summaryY);
+    doc.setTextColor(0);
+
+  } else {
+    // ====== STANDARD-MODUS: Normale Zusammenfassung ======
+    const summaryHeight = 45;
+    if (summaryY + summaryHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      summaryY = 20;
+    }
+
+    const rightAlignX = pageWidth - 14;
+    const labelX = pageWidth - 95;
+
+    doc.setDrawColor(200);
+    doc.line(labelX, summaryY - 4, rightAlignX, summaryY - 4);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Verdienst Netto:', labelX, summaryY);
+    doc.text(formatEuro(results.netCents), rightAlignX, summaryY, { align: 'right' });
+
+    doc.text(`Umsatzsteuer (${isVatFree ? '0' : '20'}%):`, labelX, summaryY + 7);
+    doc.text(formatEuro(results.vatCents), rightAlignX, summaryY + 7, { align: 'right' });
+
+    doc.text('Barauslagen / GGG:', labelX, summaryY + 14);
+    doc.text(formatEuro(results.gggCents), rightAlignX, summaryY + 14, { align: 'right' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('GESAMTSUMME:', labelX, summaryY + 25);
+    doc.text(formatEuro(results.totalCents), rightAlignX, summaryY + 25, { align: 'right' });
+  }
+
+  // --- Seitennummerierung + Disclaimer auf allen Seiten ---
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+
+    // Legal Disclaimer (nur auf letzter Seite)
+    if (i === totalPages) {
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(150);
+      doc.text('Dies ist eine softwaregenerierte Kostenaufstellung auf Basis der RATG/GGG Logik. Keine Gewähr für Fehlerfreiheit.', 14, pageHeight - 15);
+    }
+
+    // Seitennummer (auf allen Seiten, zentriert unten)
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120);
+    const pageNumText = totalPages > 1 ? `Seite ${i} von ${totalPages}` : '';
+    if (pageNumText) {
+      doc.text(pageNumText, pageWidth / 2, pageHeight - 8, { align: 'center' });
+    }
+  }
 
   // Trigger Download
   doc.save(`Kostenverzeichnis_${new Date().toISOString().split('T')[0]}.pdf`);

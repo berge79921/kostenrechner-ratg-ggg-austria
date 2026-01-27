@@ -300,6 +300,111 @@ export const DEFAULT_EXEKUTION_METADATA: ExekutionMetadata = {
   fruehereKosten: [],
 };
 
+// ============================================================================
+// ZIVILPROZESS - Klagen (wir können Kläger ODER Beklagte vertreten)
+// ============================================================================
+
+export type KlageArt = 'Mahnklage' | 'Klage' | 'Zahlungsbefehl' | 'Sonstig';
+export type VerfahrensStatus = 'offen' | 'ZB_erlassen' | 'zugestellt' | 'Einspruch' | 'streitig' | 'abgeschlossen';
+export type VertretenePartei = 'klaeger' | 'beklagte';
+
+export interface ZivilprozessMetadata {
+  // Welche Partei vertreten wir?
+  vertretenePartei: VertretenePartei;
+
+  // Kläger (aus Dokument)
+  klaegerName: string;
+  klaegerStrasse: string;
+  klaegerPlz: string;
+  klaegerOrt: string;
+  klaegerLand: string;              // z.B. "Italien"
+  klaegerGeburtsdatum: string;      // TT.MM.JJJJ
+
+  // Klagevertreter (Anwalt des Klägers)
+  klagevertreterName: string;
+  klagevertreterStrasse: string;
+  klagevertreterPlz: string;
+  klagevertreterOrt: string;
+  klagevertreterCode: string;       // R-Code z.B. "R210380"
+  klagevertreterZeichen: string;    // Aktenzeichen z.B. "KoP/Pfeffer25"
+
+  // Beklagte (aus Dokument)
+  beklagterName: string;
+  beklagterStrasse: string;
+  beklagterPlz: string;
+  beklagterOrt: string;
+  beklagterLand: string;
+  beklagterGeburtsdatum: string;
+
+  // Beklagtenvertreter (Anwalt der Beklagten)
+  beklagtenvertreterName: string;
+  beklagtenvertreterStrasse: string;
+  beklagtenvertreterPlz: string;
+  beklagtenvertreterOrt: string;
+  beklagtenvertreterCode: string;
+  beklagtenvertreterZeichen: string;
+
+  // Verfahren
+  klageArt: KlageArt;
+  klageGericht: string;             // z.B. "LGZ Wien"
+  gerichtsabteilung: string;        // z.B. "003"
+  klageGZ: string;                  // z.B. "3 Cg 165/25 v"
+  einbringungsDatum: string;        // TT.MM.JJJJ
+  fallcode: string;                 // z.B. "12A"
+  klagegegenstand: string;          // Kurzbeschreibung
+
+  // Forderung
+  kapitalforderung: number;         // in Euro
+  nebenforderung: number;           // in Euro
+  zinsenProzent: number;
+  zinsenAb: string;                 // TT.MM.JJJJ
+
+  // Status
+  verfahrensStatus: VerfahrensStatus;
+  zustellungsDatum?: string;        // Wann Klage zugestellt
+  einspruchsfrist?: string;         // Fristende für Einspruch/KB
+}
+
+export const DEFAULT_ZIVILPROZESS_METADATA: ZivilprozessMetadata = {
+  vertretenePartei: 'beklagte',
+  klaegerName: '',
+  klaegerStrasse: '',
+  klaegerPlz: '',
+  klaegerOrt: '',
+  klaegerLand: '',
+  klaegerGeburtsdatum: '',
+  klagevertreterName: '',
+  klagevertreterStrasse: '',
+  klagevertreterPlz: '',
+  klagevertreterOrt: '',
+  klagevertreterCode: '',
+  klagevertreterZeichen: '',
+  beklagterName: '',
+  beklagterStrasse: '',
+  beklagterPlz: '',
+  beklagterOrt: '',
+  beklagterLand: '',
+  beklagterGeburtsdatum: '',
+  beklagtenvertreterName: '',
+  beklagtenvertreterStrasse: '',
+  beklagtenvertreterPlz: '',
+  beklagtenvertreterOrt: '',
+  beklagtenvertreterCode: '',
+  beklagtenvertreterZeichen: '',
+  klageArt: 'Mahnklage',
+  klageGericht: '',
+  gerichtsabteilung: '',
+  klageGZ: '',
+  einbringungsDatum: '',
+  fallcode: '',
+  klagegegenstand: '',
+  kapitalforderung: 0,
+  nebenforderung: 0,
+  zinsenProzent: 4,
+  zinsenAb: '',
+  verfahrensStatus: 'offen',
+};
+
 export interface CaseMetadata {
   // Fall-Identifikation
   geschaeftszahl: string;      // z.B. "1 Cg 123/24k"
@@ -320,6 +425,8 @@ export interface CaseMetadata {
   version: string;             // CSV format version
   // Exekution-spezifisch (nur bei ProcedureType.EXEKUTION)
   exekution?: ExekutionMetadata;
+  // Zivilprozess-spezifisch (eingehende Klage, wir sind Beklagte)
+  zivilprozess?: ZivilprozessMetadata;
 }
 
 export const DEFAULT_CASE_METADATA: CaseMetadata = {
@@ -378,6 +485,9 @@ export interface KostennoteState {
   vstrafServices: VStrafService[];
   vstrafStreitgenossen: number;
   vstrafErfolgszuschlag: number;
+  // Globale ES-Einstellung (beeinflusst ALLE Leistungen)
+  mitES: boolean;             // true = ES aktiv, false = Einzelabrechnung
+  auswaerts: boolean;         // true = doppelt, false = einfach (nur relevant wenn mitES=true)
 }
 
 // Gespeicherte Kostennote mit Metadaten
@@ -411,4 +521,6 @@ export const DEFAULT_KOSTENNOTE_STATE: KostennoteState = {
   vstrafServices: [],
   vstrafStreitgenossen: 0,
   vstrafErfolgszuschlag: 0,
+  mitES: true,              // Default: mit ES
+  auswaerts: true,          // Default: auswärts (doppelt)
 };

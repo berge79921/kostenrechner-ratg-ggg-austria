@@ -40,6 +40,9 @@ export interface ExportState {
   vstrafServices: VStrafService[];
   vstrafStreitgenossen: number;
   vstrafErfolgszuschlag: number;
+  // Globale ES-Einstellung
+  mitES: boolean;
+  auswaerts: boolean;
 }
 
 function escapeCSV(value: string): string {
@@ -168,6 +171,41 @@ export function exportToCSV(state: ExportState): string {
     }
   }
 
+  // Zivilprozess-Metadaten (falls vorhanden)
+  const zp = state.metadata.zivilprozess;
+  if (zp) {
+    lines.push(`ZIVILPROZESS;klaegerName;${escapeCSV(zp.klaegerName)}`);
+    lines.push(`ZIVILPROZESS;klaegerStrasse;${escapeCSV(zp.klaegerStrasse)}`);
+    lines.push(`ZIVILPROZESS;klaegerPlz;${escapeCSV(zp.klaegerPlz)}`);
+    lines.push(`ZIVILPROZESS;klaegerOrt;${escapeCSV(zp.klaegerOrt)}`);
+    lines.push(`ZIVILPROZESS;klaegerLand;${escapeCSV(zp.klaegerLand)}`);
+    lines.push(`ZIVILPROZESS;klaegerGeburtsdatum;${escapeCSV(zp.klaegerGeburtsdatum)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterName;${escapeCSV(zp.klagevertreterName)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterStrasse;${escapeCSV(zp.klagevertreterStrasse)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterPlz;${escapeCSV(zp.klagevertreterPlz)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterOrt;${escapeCSV(zp.klagevertreterOrt)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterCode;${escapeCSV(zp.klagevertreterCode)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterZeichen;${escapeCSV(zp.klagevertreterZeichen)}`);
+    lines.push(`ZIVILPROZESS;klageArt;${escapeCSV(zp.klageArt)}`);
+    lines.push(`ZIVILPROZESS;klageGericht;${escapeCSV(zp.klageGericht)}`);
+    lines.push(`ZIVILPROZESS;gerichtsabteilung;${escapeCSV(zp.gerichtsabteilung)}`);
+    lines.push(`ZIVILPROZESS;klageGZ;${escapeCSV(zp.klageGZ)}`);
+    lines.push(`ZIVILPROZESS;einbringungsDatum;${escapeCSV(zp.einbringungsDatum)}`);
+    lines.push(`ZIVILPROZESS;fallcode;${escapeCSV(zp.fallcode)}`);
+    lines.push(`ZIVILPROZESS;klagegegenstand;${escapeCSV(zp.klagegegenstand)}`);
+    lines.push(`ZIVILPROZESS;kapitalforderung;${zp.kapitalforderung}`);
+    lines.push(`ZIVILPROZESS;nebenforderung;${zp.nebenforderung}`);
+    lines.push(`ZIVILPROZESS;zinsenProzent;${zp.zinsenProzent}`);
+    lines.push(`ZIVILPROZESS;zinsenAb;${escapeCSV(zp.zinsenAb)}`);
+    lines.push(`ZIVILPROZESS;verfahrensStatus;${escapeCSV(zp.verfahrensStatus)}`);
+    if (zp.zustellungsDatum) {
+      lines.push(`ZIVILPROZESS;zustellungsDatum;${escapeCSV(zp.zustellungsDatum)}`);
+    }
+    if (zp.einspruchsfrist) {
+      lines.push(`ZIVILPROZESS;einspruchsfrist;${escapeCSV(zp.einspruchsfrist)}`);
+    }
+  }
+
   // Common state
   lines.push(`STATE;caseMode;${state.caseMode}`);
   lines.push(`STATE;isVatFree;${state.isVatFree ? '1' : '0'}`);
@@ -193,6 +231,10 @@ export function exportToCSV(state: ExportState): string {
   lines.push(`STATE;vstrafVerfallswert;${state.vstrafVerfallswert}`);
   lines.push(`STATE;vstrafStreitgenossen;${state.vstrafStreitgenossen}`);
   lines.push(`STATE;vstrafErfolgszuschlag;${state.vstrafErfolgszuschlag}`);
+
+  // Globale ES-Einstellung
+  lines.push(`STATE;mitES;${state.mitES}`);
+  lines.push(`STATE;auswaerts;${state.auswaerts}`);
 
   // Services
   for (const s of state.services) {
@@ -278,6 +320,41 @@ function exportSingleKostennoteV2(k: SavedKostennote): string[] {
     }
   }
 
+  // Zivilprozess-Metadaten (falls vorhanden)
+  const zp = k.metadata.zivilprozess;
+  if (zp) {
+    lines.push(`ZIVILPROZESS;klaegerName;${escapeCSV(zp.klaegerName)}`);
+    lines.push(`ZIVILPROZESS;klaegerStrasse;${escapeCSV(zp.klaegerStrasse)}`);
+    lines.push(`ZIVILPROZESS;klaegerPlz;${escapeCSV(zp.klaegerPlz)}`);
+    lines.push(`ZIVILPROZESS;klaegerOrt;${escapeCSV(zp.klaegerOrt)}`);
+    lines.push(`ZIVILPROZESS;klaegerLand;${escapeCSV(zp.klaegerLand)}`);
+    lines.push(`ZIVILPROZESS;klaegerGeburtsdatum;${escapeCSV(zp.klaegerGeburtsdatum)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterName;${escapeCSV(zp.klagevertreterName)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterStrasse;${escapeCSV(zp.klagevertreterStrasse)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterPlz;${escapeCSV(zp.klagevertreterPlz)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterOrt;${escapeCSV(zp.klagevertreterOrt)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterCode;${escapeCSV(zp.klagevertreterCode)}`);
+    lines.push(`ZIVILPROZESS;klagevertreterZeichen;${escapeCSV(zp.klagevertreterZeichen)}`);
+    lines.push(`ZIVILPROZESS;klageArt;${escapeCSV(zp.klageArt)}`);
+    lines.push(`ZIVILPROZESS;klageGericht;${escapeCSV(zp.klageGericht)}`);
+    lines.push(`ZIVILPROZESS;gerichtsabteilung;${escapeCSV(zp.gerichtsabteilung)}`);
+    lines.push(`ZIVILPROZESS;klageGZ;${escapeCSV(zp.klageGZ)}`);
+    lines.push(`ZIVILPROZESS;einbringungsDatum;${escapeCSV(zp.einbringungsDatum)}`);
+    lines.push(`ZIVILPROZESS;fallcode;${escapeCSV(zp.fallcode)}`);
+    lines.push(`ZIVILPROZESS;klagegegenstand;${escapeCSV(zp.klagegegenstand)}`);
+    lines.push(`ZIVILPROZESS;kapitalforderung;${zp.kapitalforderung}`);
+    lines.push(`ZIVILPROZESS;nebenforderung;${zp.nebenforderung}`);
+    lines.push(`ZIVILPROZESS;zinsenProzent;${zp.zinsenProzent}`);
+    lines.push(`ZIVILPROZESS;zinsenAb;${escapeCSV(zp.zinsenAb)}`);
+    lines.push(`ZIVILPROZESS;verfahrensStatus;${escapeCSV(zp.verfahrensStatus)}`);
+    if (zp.zustellungsDatum) {
+      lines.push(`ZIVILPROZESS;zustellungsDatum;${escapeCSV(zp.zustellungsDatum)}`);
+    }
+    if (zp.einspruchsfrist) {
+      lines.push(`ZIVILPROZESS;einspruchsfrist;${escapeCSV(zp.einspruchsfrist)}`);
+    }
+  }
+
   const s = k.state;
 
   // Common state
@@ -305,6 +382,10 @@ function exportSingleKostennoteV2(k: SavedKostennote): string[] {
   lines.push(`STATE;vstrafVerfallswert;${s.vstrafVerfallswert}`);
   lines.push(`STATE;vstrafStreitgenossen;${s.vstrafStreitgenossen}`);
   lines.push(`STATE;vstrafErfolgszuschlag;${s.vstrafErfolgszuschlag}`);
+
+  // Globale ES-Einstellung
+  lines.push(`STATE;mitES;${s.mitES}`);
+  lines.push(`STATE;auswaerts;${s.auswaerts}`);
 
   // Services
   for (const svc of s.services) {

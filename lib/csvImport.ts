@@ -4,8 +4,12 @@ import {
   CaseMetadata,
   DEFAULT_CASE_METADATA,
   DEFAULT_EXEKUTION_METADATA,
+  DEFAULT_ZIVILPROZESS_METADATA,
   ExekutionMetadata,
+  ZivilprozessMetadata,
   TitelArt,
+  KlageArt,
+  VerfahrensStatus,
   CaseMode,
   ProcedureType,
   LegalService,
@@ -210,6 +214,8 @@ export function importFromCSV(csv: string): ImportResult {
     vstrafServices: [],
     vstrafStreitgenossen: 0,
     vstrafErfolgszuschlag: 0,
+    mitES: true,
+    auswaerts: true,
   };
 
   // Parse lines
@@ -275,6 +281,12 @@ export function importFromCSV(csv: string): ImportResult {
         case 'vstrafErfolgszuschlag':
           state.vstrafErfolgszuschlag = parseNumber(value, 0);
           break;
+        case 'mitES':
+          state.mitES = value === 'true';
+          break;
+        case 'auswaerts':
+          state.auswaerts = value === 'true';
+          break;
         default:
           warnings.push(`Unbekannter State-Schlüssel: ${key}`);
       }
@@ -310,6 +322,42 @@ export function importFromCSV(csv: string): ImportResult {
             exek.fruehereKosten = [];
           }
           break;
+      }
+    } else if (type === 'ZIVILPROZESS') {
+      // Zivilprozess-Metadaten
+      const key = parts[1];
+      const value = unescapeCSV(parts[2] ?? '');
+      if (!state.metadata.zivilprozess) {
+        state.metadata.zivilprozess = { ...DEFAULT_ZIVILPROZESS_METADATA };
+      }
+      const zp = state.metadata.zivilprozess;
+      switch (key) {
+        case 'klaegerName': zp.klaegerName = value; break;
+        case 'klaegerStrasse': zp.klaegerStrasse = value; break;
+        case 'klaegerPlz': zp.klaegerPlz = value; break;
+        case 'klaegerOrt': zp.klaegerOrt = value; break;
+        case 'klaegerLand': zp.klaegerLand = value; break;
+        case 'klaegerGeburtsdatum': zp.klaegerGeburtsdatum = value; break;
+        case 'klagevertreterName': zp.klagevertreterName = value; break;
+        case 'klagevertreterStrasse': zp.klagevertreterStrasse = value; break;
+        case 'klagevertreterPlz': zp.klagevertreterPlz = value; break;
+        case 'klagevertreterOrt': zp.klagevertreterOrt = value; break;
+        case 'klagevertreterCode': zp.klagevertreterCode = value; break;
+        case 'klagevertreterZeichen': zp.klagevertreterZeichen = value; break;
+        case 'klageArt': zp.klageArt = value as KlageArt; break;
+        case 'klageGericht': zp.klageGericht = value; break;
+        case 'gerichtsabteilung': zp.gerichtsabteilung = value; break;
+        case 'klageGZ': zp.klageGZ = value; break;
+        case 'einbringungsDatum': zp.einbringungsDatum = value; break;
+        case 'fallcode': zp.fallcode = value; break;
+        case 'klagegegenstand': zp.klagegegenstand = value; break;
+        case 'kapitalforderung': zp.kapitalforderung = parseNumber(value, 0); break;
+        case 'nebenforderung': zp.nebenforderung = parseNumber(value, 0); break;
+        case 'zinsenProzent': zp.zinsenProzent = parseNumber(value, 0); break;
+        case 'zinsenAb': zp.zinsenAb = value; break;
+        case 'verfahrensStatus': zp.verfahrensStatus = value as VerfahrensStatus; break;
+        case 'zustellungsDatum': zp.zustellungsDatum = value; break;
+        case 'einspruchsfrist': zp.einspruchsfrist = value; break;
       }
     } else if (type === 'SERVICE') {
       const mode = parts[1];
@@ -393,6 +441,9 @@ function v1ToSavedKostennote(state: ExportState): SavedKostennote {
       vstrafServices: state.vstrafServices,
       vstrafStreitgenossen: state.vstrafStreitgenossen,
       vstrafErfolgszuschlag: state.vstrafErfolgszuschlag,
+      // Globale ES-Einstellung (Defaults für alte Exporte)
+      mitES: true,
+      auswaerts: true,
     },
   };
 }
@@ -442,6 +493,8 @@ function parseV2Archive(lines: string[]): MultiImportResult {
         vstrafServices: [],
         vstrafStreitgenossen: 0,
         vstrafErfolgszuschlag: 0,
+        mitES: true,
+        auswaerts: true,
       };
     } else if (type === 'KOSTENNOTE_END' && currentKostennote && currentState) {
       currentKostennote.state = currentState as KostennoteState;
@@ -479,6 +532,8 @@ function parseV2Archive(lines: string[]): MultiImportResult {
           case 'vstrafVerfallswert': currentState.vstrafVerfallswert = parseNumber(value, 0); break;
           case 'vstrafStreitgenossen': currentState.vstrafStreitgenossen = parseNumber(value, 0); break;
           case 'vstrafErfolgszuschlag': currentState.vstrafErfolgszuschlag = parseNumber(value, 0); break;
+          case 'mitES': currentState.mitES = parseBool(value); break;
+          case 'auswaerts': currentState.auswaerts = parseBool(value); break;
         }
       } else if (type === 'EXEKUTION') {
         // Exekution-Metadaten
@@ -512,6 +567,42 @@ function parseV2Archive(lines: string[]): MultiImportResult {
               exek.fruehereKosten = [];
             }
             break;
+        }
+      } else if (type === 'ZIVILPROZESS') {
+        // Zivilprozess-Metadaten
+        const key = parts[1];
+        const value = unescapeCSV(parts[2] ?? '');
+        if (!currentKostennote.metadata!.zivilprozess) {
+          currentKostennote.metadata!.zivilprozess = { ...DEFAULT_ZIVILPROZESS_METADATA };
+        }
+        const zp = currentKostennote.metadata!.zivilprozess;
+        switch (key) {
+          case 'klaegerName': zp.klaegerName = value; break;
+          case 'klaegerStrasse': zp.klaegerStrasse = value; break;
+          case 'klaegerPlz': zp.klaegerPlz = value; break;
+          case 'klaegerOrt': zp.klaegerOrt = value; break;
+          case 'klaegerLand': zp.klaegerLand = value; break;
+          case 'klaegerGeburtsdatum': zp.klaegerGeburtsdatum = value; break;
+          case 'klagevertreterName': zp.klagevertreterName = value; break;
+          case 'klagevertreterStrasse': zp.klagevertreterStrasse = value; break;
+          case 'klagevertreterPlz': zp.klagevertreterPlz = value; break;
+          case 'klagevertreterOrt': zp.klagevertreterOrt = value; break;
+          case 'klagevertreterCode': zp.klagevertreterCode = value; break;
+          case 'klagevertreterZeichen': zp.klagevertreterZeichen = value; break;
+          case 'klageArt': zp.klageArt = value as KlageArt; break;
+          case 'klageGericht': zp.klageGericht = value; break;
+          case 'gerichtsabteilung': zp.gerichtsabteilung = value; break;
+          case 'klageGZ': zp.klageGZ = value; break;
+          case 'einbringungsDatum': zp.einbringungsDatum = value; break;
+          case 'fallcode': zp.fallcode = value; break;
+          case 'klagegegenstand': zp.klagegegenstand = value; break;
+          case 'kapitalforderung': zp.kapitalforderung = parseNumber(value, 0); break;
+          case 'nebenforderung': zp.nebenforderung = parseNumber(value, 0); break;
+          case 'zinsenProzent': zp.zinsenProzent = parseNumber(value, 0); break;
+          case 'zinsenAb': zp.zinsenAb = value; break;
+          case 'verfahrensStatus': zp.verfahrensStatus = value as VerfahrensStatus; break;
+          case 'zustellungsDatum': zp.zustellungsDatum = value; break;
+          case 'einspruchsfrist': zp.einspruchsfrist = value; break;
         }
       } else if (type === 'SERVICE') {
         const mode = parts[1];

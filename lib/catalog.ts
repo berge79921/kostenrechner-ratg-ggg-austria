@@ -27,41 +27,76 @@ export const SERVICE_CATALOG: CatalogEntry[] = [
   // ═══════════════════════════════════════════════════════════════════════════
 
   // --- TP 1 Schriftsätze (einfache) ---
-  { id: 'tp1_anzeige', type: ServiceType.PLEADING_TP1, short: 'Anzeige / Urkundenvorlage', full: 'TP 1 - Anzeige / Urkundenvorlage', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_ansuchen', type: ServiceType.PLEADING_TP1, short: 'Ansuchen (Auskunft/Einsicht)', full: 'TP 1 - Ansuchen (Auskunft/Akten)', category: 'SCHRIFTSAETZE', tp: 'TP1' },
+  // I. In allen Verfahren
+  { id: 'tp1_anzeige', type: ServiceType.PLEADING_TP1, short: 'Anzeige / Urkundenvorlage', full: 'TP 1 - Anzeige / Urkundenvorlage / Mitteilung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
+  { id: 'tp1_ansuchen', type: ServiceType.PLEADING_TP1, short: 'Ansuchen (Auskunft/Einsicht)', full: 'TP 1 - Ansuchen (Auskunft/Akten/Abschriften)', category: 'SCHRIFTSAETZE', tp: 'TP1' },
   { id: 'tp1_antrag', type: ServiceType.PLEADING_TP1, short: 'Antrag (Frist/TS/Zustellung)', full: 'TP 1 - Frist / Tagsatzung / Zustellung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
   { id: 'tp1_kosten', type: ServiceType.PLEADING_TP1, short: 'Kostenbestimmungsantrag', full: 'TP 1 - Antrag auf Kostenbestimmung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
   { id: 'tp1_vollmacht', type: ServiceType.PLEADING_TP1, short: 'Vollmachtswiderruf', full: 'TP 1 - Widerruf / Kündigung Vollmacht', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_zuruecknahme', type: ServiceType.PLEADING_TP1, short: 'Zurücknahme / Verzicht', full: 'TP 1 - Zurücknahme / Verzicht', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_kurator', type: ServiceType.PLEADING_TP1, short: 'Antrag Kuratorbestellung', full: 'TP 1 - Antrag Kuratorbestellung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_nebenint', type: ServiceType.PLEADING_TP1, short: 'Beitritt Nebenintervenient', full: 'TP 1 - Beitritt Nebenintervenient', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_klagerueck', type: ServiceType.PLEADING_TP1, short: 'Klagerücknahme', full: 'TP 1 - Klagerücknahme', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_einspruch', type: ServiceType.PLEADING_TP1, short: 'Einspruch (bloße Erhebung)', full: 'TP 1 - Einspruch gegen Zahlungsbefehl', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_fortsetzung', type: ServiceType.PLEADING_TP1, short: 'Fortsetzungsantrag', full: 'TP 1 - Fortsetzungsantrag (§ 398 ZPO)', category: 'SCHRIFTSAETZE', tp: 'TP1' },
-  { id: 'tp1_berichtigung', type: ServiceType.PLEADING_TP1, short: 'Urteilsberichtigung', full: 'TP 1 - Antrag Urteilsberichtigung', category: 'SCHRIFTSAETZE', tp: 'TP1' },
+  { id: 'tp1_zuruecknahme', type: ServiceType.PLEADING_TP1, short: 'Zurücknahme / Verzicht', full: 'TP 1 - Zurücknahme Antrag/RM / Verzicht', category: 'SCHRIFTSAETZE', tp: 'TP1' },
+  { id: 'tp1_eirag', type: ServiceType.PLEADING_TP1, short: 'Einvernehmen § 5 EIRAG', full: 'TP 1 - Nachweis/Widerruf Einvernehmen § 5 Abs 2 EIRAG', category: 'SCHRIFTSAETZE', tp: 'TP1' },
+  // II. Zivilprozess
+  { id: 'tp1_kurator', type: ServiceType.PLEADING_TP1, short: 'Antrag Kuratorbestellung', full: 'TP 1 - Antrag Kuratorbestellung', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp1_nebenint', type: ServiceType.PLEADING_TP1, short: 'Beitritt Nebenintervenient', full: 'TP 1 - Beitritt Nebenintervenient', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp1_bmgl_aenderung', type: ServiceType.PLEADING_TP1, short: 'Änderung BMGL §§ 7, 8', full: 'TP 1 - Antrag Änderung BMGL §§ 7, 8 RATG', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp1_bmgl_aeusserung', type: ServiceType.PLEADING_TP1, short: 'Äußerung BMGL-Änderung', full: 'TP 1 - Äußerung zu Antrag BMGL-Änderung', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp1_klagerueck', type: ServiceType.PLEADING_TP1, short: 'Klagerücknahme', full: 'TP 1 - Klagerücknahme', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp1_einspruch', type: ServiceType.PLEADING_TP1, short: 'Einspruch (bloße Erhebung)', full: 'TP 1 - Einspruch gegen ZB (bloße Erhebung)', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp1_fortsetzung', type: ServiceType.PLEADING_TP1, short: 'Fortsetzungsantrag', full: 'TP 1 - Fortsetzungsantrag / Aufnahme § 398 ZPO', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  { id: 'tp1_berichtigung', type: ServiceType.PLEADING_TP1, short: 'Urteilsberichtigung', full: 'TP 1 - Antrag Urteilsberichtigung', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
   { id: 'tp1_berufanm', type: ServiceType.PLEADING_TP1, short: 'Berufungsanmeldung (schriftl.)', full: 'TP 1 - Schriftliche Berufungsanmeldung', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS, ProcedureType.AUSSERSTREIT] },
+  { id: 'tp1_bb_antrag', type: ServiceType.PLEADING_TP1, short: 'BB (nur Antrag mündl. VH)', full: 'TP 1 - Berufungsbeantwortung (nur Antrag mündl. VH)', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.ZIVILPROZESS] },
+  // III. Insolvenzverfahren
   { id: 'tp1_inso', type: ServiceType.PLEADING_TP1, short: 'Insolvenzeröffnungsantrag', full: 'TP 1 - Antrag Eröffnung Insolvenz', category: 'SCHRIFTSAETZE', tp: 'TP1', procedureTypes: [ProcedureType.INSOLVENZ] },
 
   // --- TP 2 Schriftsätze ---
+  // Zivilprozess - Klagen (kurze Darstellung)
   { id: 'tp2_klage_kurz', type: ServiceType.PLEADING_TP2, short: 'Klage (kurz/Bestreitung)', full: 'TP 2 - Klage (kurz / Saldo / Kaufpreis)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
-  { id: 'tp2_kb_kurz', type: ServiceType.PLEADING_TP2, short: 'KB / Einspruch (Bestreitung)', full: 'TP 2 - KB / Widerspruch / Einspruch', category: 'SCHRIFTSAETZE', tp: 'TP2' },
-  { id: 'tp2_aufkuend', type: ServiceType.PLEADING_TP2, short: 'Aufkündigung (nur Gründe)', full: 'TP 2 - Aufkündigung § 567 ZPO', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_saldoklage', type: ServiceType.PLEADING_TP2, short: 'Saldoklage', full: 'TP 2 - Saldoklage (kurze Darstellung)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_darlehensklage', type: ServiceType.PLEADING_TP2, short: 'Darlehensklage', full: 'TP 2 - Darlehensklage (kurze Darstellung)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_kaufpreisklage', type: ServiceType.PLEADING_TP2, short: 'Kaufpreisklage', full: 'TP 2 - Kaufpreisklage bewegliche Sachen', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_entgeltklage', type: ServiceType.PLEADING_TP2, short: 'Entgeltklage (Arbeit/Dienst)', full: 'TP 2 - Entgeltklage Arbeit/Dienste', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_praemienklage', type: ServiceType.PLEADING_TP2, short: 'Versicherungsprämien', full: 'TP 2 - Klage Versicherungsprämien/Beiträge', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_bestandzins', type: ServiceType.PLEADING_TP2, short: 'Bestandzins (Miete)', full: 'TP 2 - Klage auf Bestandzins', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_549_klage', type: ServiceType.PLEADING_TP2, short: 'Klage/Antrag § 549 ZPO', full: 'TP 2 - Klage/Antrag § 549 ZPO (Unterlassung)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_wechselmandat', type: ServiceType.PLEADING_TP2, short: 'Wechselmandatsklage', full: 'TP 2 - Wechselmandatsklage', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_scheck', type: ServiceType.PLEADING_TP2, short: 'Scheckklage (Rückgriff)', full: 'TP 2 - Scheckrechtliche Rückgriffsklage', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  // Zivilprozess - Beitrittserklärungen § 628 ZPO (Sammelklage)
+  { id: 'tp2_beitritt_628', type: ServiceType.PLEADING_TP2, short: 'Beitrittserklärung § 628', full: 'TP 2 - Beitrittserklärung § 628 ZPO', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_aeusserung_628', type: ServiceType.PLEADING_TP2, short: 'Äußerung Beitritt § 628', full: 'TP 2 - Äußerung zu Beitritt § 628 ZPO', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  // Zivilprozess - KB/Einspruch/Einwendungen (kurz)
+  { id: 'tp2_kb_kurz', type: ServiceType.PLEADING_TP2, short: 'KB / Einspruch (Bestreitung)', full: 'TP 2 - KB / Widerspruch / Einspruch (kurz)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_aufkuend', type: ServiceType.PLEADING_TP2, short: 'Aufkündigung (nur Gründe)', full: 'TP 2 - Aufkündigung § 567 ZPO (kurz)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
   { id: 'tp2_sonstig_zp', type: ServiceType.PLEADING_TP2, short: 'Sonstiger Schriftsatz (ZP)', full: 'TP 2 - Sonstiger Schriftsatz ZP', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  // Andere Verfahren
   { id: 'tp2_ex', type: ServiceType.PLEADING_TP2, short: 'Schriftsatz (Exekution)', full: 'TP 2 - Schriftsatz Exekution', category: 'SCHRIFTSAETZE', tp: 'TP2' },
   { id: 'tp2_grundbuch', type: ServiceType.PLEADING_TP2, short: 'Grundbuch / Register (kurz)', full: 'TP 2 - Grundbuch / Register (kurz)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
-  { id: 'tp2_ausserstr', type: ServiceType.PLEADING_TP2, short: 'Äußerung (kurz/Bestreitung)', full: 'TP 2 - Äußerung AußStr (kurz)', category: 'SCHRIFTSAETZE', tp: 'TP2' },
-  { id: 'tp2_inso', type: ServiceType.PLEADING_TP2, short: 'Gläubigerschriftsatz (Inso)', full: 'TP 2 - Gläubigerschriftsatz Insolvenz', category: 'SCHRIFTSAETZE', tp: 'TP2' },
+  { id: 'tp2_ausserstr', type: ServiceType.PLEADING_TP2, short: 'Äußerung (kurz/Bestreitung)', full: 'TP 2 - Äußerung AußStr (kurz)', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.AUSSERSTREIT] },
+  { id: 'tp2_inso', type: ServiceType.PLEADING_TP2, short: 'Gläubigerschriftsatz (Inso)', full: 'TP 2 - Gläubigerschriftsatz Insolvenz', category: 'SCHRIFTSAETZE', tp: 'TP2', procedureTypes: [ProcedureType.INSOLVENZ] },
 
   // --- TP 3A Schriftsätze (ausführlich) ---
+  // Zivilprozess
   { id: 'tp3a_klage', type: ServiceType.PLEADING_TP3A_I, short: 'Klage (ausführlich)', full: 'TP 3A - Klage (ausführlich)', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
   { id: 'tp3a_kb', type: ServiceType.PLEADING_TP3A_I, short: 'Klagebeantwortung (ausf.)', full: 'TP 3A - KB / Widerspruch (ausführlich)', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
-  { id: 'tp3a_aufkuend', type: ServiceType.PLEADING_TP3A_I, short: 'Aufkündigung / Einwendung', full: 'TP 3A - Aufkündigung / Einwendung', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
-  { id: 'tp3a_vorbereitung', type: ServiceType.PLEADING_TP3A_I, short: 'Vorbereitender Schriftsatz', full: 'TP 3A - Vorbereitungsschriftsatz', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
+  { id: 'tp3a_einspruch', type: ServiceType.PLEADING_TP3A_I, short: 'Einspruch (ausführlich)', full: 'TP 3A - Einspruch gegen ZB (ausführlich)', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
+  { id: 'tp3a_widerspruch_vu', type: ServiceType.PLEADING_TP3A_I, short: 'Widerspruch VU (ausf.)', full: 'TP 3A - Widerspruch gegen Versäumungsurteil', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
+  { id: 'tp3a_einwendungen_za', type: ServiceType.PLEADING_TP3A_I, short: 'Einwendungen Zahlungsauftrag', full: 'TP 3A - Einwendungen gegen Zahlungsauftrag', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
+  { id: 'tp3a_einwendungen_549', type: ServiceType.PLEADING_TP3A_I, short: 'Einwendungen § 549 ZPO', full: 'TP 3A - Einwendungen Unterlassungsauftrag § 549', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
+  { id: 'tp3a_aufkuend', type: ServiceType.PLEADING_TP3A_I, short: 'Aufkündigung / Einwendung', full: 'TP 3A - Aufkündigung / Einwendung § 567', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
+  { id: 'tp3a_vorbereitung', type: ServiceType.PLEADING_TP3A_I, short: 'Vorbereitender Schriftsatz', full: 'TP 3A - Vorbereitungsschriftsatz § 257 Abs 3', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
   { id: 'tp3a_beweis', type: ServiceType.PLEADING_TP3A_I, short: 'Beweissicherung Antrag', full: 'TP 3A - Antrag Beweissicherung', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
   { id: 'tp3a_ev', type: ServiceType.PLEADING_TP3A_I, short: 'Einstweilige Verfügung', full: 'TP 3A - EV (Antrag/Äußerung/Widerspruch)', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
   { id: 'tp3a_kostenrekurs', type: ServiceType.PLEADING_TP3A_I, short: 'Kostenrekurs', full: 'TP 3A - Kostenrekurs / Beantwortung', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
-  { id: 'tp3a_ausserstr', type: ServiceType.PLEADING_TP3A_I, short: 'Einleitender Antrag (AußStr)', full: 'TP 3A - Einleitender Antrag AußStr', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
-  { id: 'tp3a_inso', type: ServiceType.PLEADING_TP3A_I, short: 'Sanierung / Restrukturierung', full: 'TP 3A - Sanierung / Restrukturierung', category: 'SCHRIFTSAETZE', tp: 'TP3A' },
+  // Exekutionsverfahren
+  { id: 'tp3a_vollstreckbarerklarung', type: ServiceType.PLEADING_TP3A_I, short: 'Vollstreckbarerklärung ausl.', full: 'TP 3A - Vollstreckbarerklärung ausländischer Titel', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  { id: 'tp3a_widerspruch_vollstreckbar', type: ServiceType.PLEADING_TP3A_I, short: 'Widerspruch Vollstreckbarerklärung', full: 'TP 3A - Widerspruch gegen Vollstreckbarerklärung', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.EXEKUTION] },
+  // Außerstreitiges Verfahren
+  { id: 'tp3a_ausserstr', type: ServiceType.PLEADING_TP3A_I, short: 'Einleitender Antrag (AußStr)', full: 'TP 3A - Einleitender Antrag AußStr', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.AUSSERSTREIT] },
+  { id: 'tp3a_ausserstr_aeusserung', type: ServiceType.PLEADING_TP3A_I, short: 'Äußerung (AußStr, ausf.)', full: 'TP 3A - Äußerung zu verfahrenseinl. Antrag', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.AUSSERSTREIT] },
+  { id: 'tp3a_ausserstr_aufgetragen', type: ServiceType.PLEADING_TP3A_I, short: 'Aufgetragener Schriftsatz', full: 'TP 3A - Aufgetragener Schriftsatz mit Sachvorbringen', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.AUSSERSTREIT] },
+  // Insolvenz- und Restrukturierungsverfahren
+  { id: 'tp3a_inso', type: ServiceType.PLEADING_TP3A_I, short: 'Sanierung / Restrukturierung', full: 'TP 3A - Sanierung / Restrukturierung', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.INSOLVENZ] },
+  { id: 'tp3a_absonderung', type: ServiceType.PLEADING_TP3A_I, short: 'Absonderungs-/Aussonderungsrecht', full: 'TP 3A - Absonderungs-/Aussonderungsrecht', category: 'SCHRIFTSAETZE', tp: 'TP3A', procedureTypes: [ProcedureType.INSOLVENZ] },
 
   // --- TP 3B Schriftsätze (Rechtsmittel 2. Instanz) ---
   { id: 'tp3b_berufung', type: ServiceType.PLEADING_TP3B, short: 'Berufung / Rekurs', full: 'TP 3B - Berufung / Rekurs / Beschwerde', category: 'SCHRIFTSAETZE', tp: 'TP3B' },

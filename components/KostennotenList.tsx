@@ -1,8 +1,10 @@
-import React, { useRef } from 'react';
-import { Plus, Upload, Download, Edit2, Trash2, Scale, Gavel, Lock, Building2, FileText } from 'lucide-react';
+import React, { useRef, useState, useMemo } from 'react';
+import { Plus, Upload, Download, Edit2, Trash2, Scale, Gavel, Lock, Building2, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import type { SavedKostennote } from '../types';
 import { CaseMode } from '../types';
 import { GlassCard } from './GlassCard';
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 interface Props {
   kostennoten: SavedKostennote[];
@@ -29,6 +31,57 @@ export const KostennotenList: React.FC<Props> = ({
   onExportAll,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [pageInput, setPageInput] = useState('1');
+
+  // Pagination Berechnungen
+  const totalPages = Math.max(1, Math.ceil(kostennoten.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, kostennoten.length);
+  const paginatedKostennoten = useMemo(() => {
+    return kostennoten.slice(startIndex, endIndex);
+  }, [kostennoten, startIndex, endIndex]);
+
+  // Seite validieren wenn Kostennoten sich ändern
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+      setPageInput(String(Math.max(1, totalPages)));
+    }
+  }, [kostennoten.length, pageSize, totalPages, currentPage]);
+
+  const goToPage = (page: number) => {
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(validPage);
+    setPageInput(String(validPage));
+  };
+
+  const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPageInput(e.target.value);
+  };
+
+  const handlePageInputSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const page = parseInt(pageInput, 10);
+      if (!isNaN(page)) {
+        goToPage(page);
+      } else {
+        setPageInput(String(currentPage));
+      }
+    }
+  };
+
+  const handlePageInputBlur = () => {
+    const page = parseInt(pageInput, 10);
+    if (!isNaN(page)) {
+      goToPage(page);
+    } else {
+      setPageInput(String(currentPage));
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,7 +118,7 @@ export const KostennotenList: React.FC<Props> = ({
           <p className="text-slate-400 text-sm mt-1">
             {kostennoten.length === 0
               ? 'Noch keine Kostennoten vorhanden'
-              : `${kostennoten.length} Kostennote${kostennoten.length !== 1 ? 'n' : ''}`}
+              : `${kostennoten.length} Kostennote${kostennoten.length !== 1 ? 'n' : ''} (${startIndex + 1}–${endIndex})`}
           </p>
         </div>
         <div className="flex gap-3">
@@ -148,7 +201,7 @@ export const KostennotenList: React.FC<Props> = ({
               </tr>
             </thead>
             <tbody>
-              {kostennoten.map((k, idx) => {
+              {paginatedKostennoten.map((k, idx) => {
                 const mode = MODE_CONFIG[k.state.caseMode] || MODE_CONFIG[CaseMode.CIVIL];
                 const Icon = mode.icon;
                 return (
@@ -218,6 +271,93 @@ export const KostennotenList: React.FC<Props> = ({
               })}
             </tbody>
           </table>
+
+          {/* Pagination Controls */}
+          {kostennoten.length > 10 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-white/10 bg-white/[0.02]">
+              {/* Items per page */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Pro Seite:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                    setPageInput('1');
+                  }}
+                  className="bg-white/10 border border-white/10 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                >
+                  {PAGE_SIZE_OPTIONS.map(size => (
+                    <option key={size} value={size} className="bg-slate-800">
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Navigation */}
+              <div className="flex items-center gap-1">
+                {/* First page */}
+                <button
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400 hover:text-white transition-all"
+                  title="Erste Seite"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </button>
+
+                {/* Previous page */}
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400 hover:text-white transition-all"
+                  title="Vorherige Seite"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                {/* Page input */}
+                <div className="flex items-center gap-2 px-2">
+                  <span className="text-xs text-slate-500">Seite</span>
+                  <input
+                    type="text"
+                    value={pageInput}
+                    onChange={handlePageInputChange}
+                    onKeyDown={handlePageInputSubmit}
+                    onBlur={handlePageInputBlur}
+                    className="w-12 bg-white/10 border border-white/10 rounded-lg px-2 py-1 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                  <span className="text-xs text-slate-500">von {totalPages}</span>
+                </div>
+
+                {/* Next page */}
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400 hover:text-white transition-all"
+                  title="Nächste Seite"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+
+                {/* Last page */}
+                <button
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400 hover:text-white transition-all"
+                  title="Letzte Seite"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Info */}
+              <div className="text-xs text-slate-500">
+                {startIndex + 1}–{endIndex} von {kostennoten.length}
+              </div>
+            </div>
+          )}
         </GlassCard>
       )}
     </div>

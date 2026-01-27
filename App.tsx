@@ -68,13 +68,14 @@ import { BookOpen, Lock, Upload, Save, ArrowLeft, List } from 'lucide-react';
 import { CaseMetadata, DEFAULT_CASE_METADATA, KanzleiData, AppView, SavedKostennote, KostennoteState, DEFAULT_KOSTENNOTE_STATE } from './types';
 import { exportToCSV, generateFilename, ExportState, exportAllKostennoten, generateArchiveFilename } from './lib/csvExport';
 import { importFromCSV, importMultipleKostennoten } from './lib/csvImport';
-import { saveKanzleiData, loadKanzleiData } from './lib/storage';
+import { saveKanzleiData, loadKanzleiData, clearKanzleiData } from './lib/storage';
 import { loadAllKostennoten, saveAllKostennoten, saveKostennote, deleteKostennote as deleteKostennoteFromStore, createNewKostennote } from './lib/kostennotenStore';
 import { CaseMetadataForm, PrintOptions } from './components/CaseMetadataForm';
 import { KostennotenList } from './components/KostennotenList';
 import { ExekutionUpload } from './components/ExekutionUpload';
-import { DEFAULT_EXEKUTION_METADATA, ExekutionMetadata } from './types';
-import type { ExtractedExekutionData } from './lib/documentExtractor';
+import { ZivilprozessUpload, type LeistungToAdd, type SelectedParties } from './components/ZivilprozessUpload';
+import { DEFAULT_EXEKUTION_METADATA, DEFAULT_ZIVILPROZESS_METADATA, ExekutionMetadata, ZivilprozessMetadata, KlageArt, VertretenePartei } from './types';
+import type { ExtractedExekutionData, ExtractedZivilprozessData } from './lib/documentExtractor';
 
 // Helper: Map ServiceType to TagsatzungType
 function getTagsatzungType(serviceType: ServiceType): TagsatzungType | null {
@@ -192,6 +193,32 @@ const App: React.FC = () => {
     printKanzlei: true,
   });
 
+  // --- Tagsatzungs-Variante (für Verhandlung zum Einkreisen) ---
+  const [tagsatzungVariante, setTagsatzungVariante] = useState(() => {
+    const saved = localStorage.getItem('tagsatzungVariante');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [tagsatzungDatum, setTagsatzungDatum] = useState(() => {
+    const d = new Date();
+    return d.toLocaleDateString('de-AT');
+  });
+
+  // --- Globale ES-Einstellung (beeinflusst ALLE Leistungen) ---
+  // Wird als Teil des KostennoteState gespeichert (pro Kostennote)
+  const [mitES, setMitES] = useState<boolean>(true);      // true = ES aktiv, false = Einzelabrechnung
+  const [auswaerts, setAuswaerts] = useState<boolean>(true);  // true = doppelt, false = einfach
+
+  // Abgeleiteter globaler ES-Multiplier:
+  // - Kein ES (Einzelabrechnung): esMultiplier = 0
+  // - ES + auswärts: esMultiplier = 2 (doppelt)
+  // - ES + nicht auswärts: esMultiplier = 1 (einfach)
+  const globalESMultiplier = !mitES ? 0 : (auswaerts ? 2 : 1);
+
+  // Tagsatzungs-Variante in localStorage speichern (global, nicht pro Kostennote)
+  useEffect(() => {
+    localStorage.setItem('tagsatzungVariante', JSON.stringify(tagsatzungVariante));
+  }, [tagsatzungVariante]);
+
   // --- Multi-Kostennoten State ---
   const [view, setView] = useState<AppView>('list');
   const [kostennoten, setKostennoten] = useState<SavedKostennote[]>([]);
@@ -214,7 +241,7 @@ const App: React.FC = () => {
   };
 
   // Handler für extrahierte Exekutionsdaten aus PDF
-  const handleExekutionDataExtracted = (data: ExtractedExekutionData) => {
+  const handleExekutionDataExtracted = (data: ExtractedExekutionData, _saveAsHeimkanzlei: boolean) => {
     // Titel-Art mappen
     const titelArtMap: Record<string, ExekutionMetadata['titelArt']> = {
       'Zahlungsbefehl': 'Zahlungsbefehl',
@@ -264,7 +291,7 @@ const App: React.FC = () => {
       },
     }));
 
-    // Kanzleidaten auch persistent speichern wenn extrahiert
+    // Kanzleidaten als Session-Daten speichern (Heimkanzlei wird in der Upload-Komponente gespeichert)
     if (data.kanzleiName) {
       saveKanzleiData({
         kanzleiName: data.kanzleiName,
@@ -278,8 +305,30 @@ const App: React.FC = () => {
     setBmgl(data.kapitalforderung);
   };
 
-  // Handler zum Löschen aller Exekutionsdaten
+  // Handler zum Leeren aller Exekutionsdaten (Felder bleiben erhalten, nur leer)
   const handleClearExekutionData = () => {
+    setCaseMetadata(prev => ({
+      ...prev,
+      exekution: { ...DEFAULT_EXEKUTION_METADATA },
+    }));
+    setBmgl(0);
+  };
+
+  // Handler zum Leeren der Kanzleidaten (State UND localStorage)
+  const handleClearKanzleiData = () => {
+    setCaseMetadata(prev => ({
+      ...prev,
+      kanzleiName: '',
+      kanzleiStrasse: '',
+      kanzleiPlz: '',
+      kanzleiOrt: '',
+    }));
+    // Auch aus localStorage löschen!
+    clearKanzleiData();
+  };
+
+  // Handler zum Leeren der Titeldaten/Falldaten
+  const handleClearTiteldaten = () => {
     setCaseMetadata(prev => ({
       ...prev,
       geschaeftszahl: '',
@@ -289,7 +338,183 @@ const App: React.FC = () => {
       parteiPlz: '',
       parteiOrt: '',
       parteiLand: '',
-      exekution: undefined,
+    }));
+  };
+
+  // Handler für extrahierte Zivilprozessdaten aus PDF (Klage/Mahnklage/Protokoll)
+  const handleZivilprozessDataExtracted = (
+    data: ExtractedZivilprozessData,
+    vertretenePartei: VertretenePartei,
+    leistung?: LeistungToAdd,
+    selectedParties?: SelectedParties
+  ) => {
+    // Klage-Art mappen
+    const klageArtMap: Record<string, KlageArt> = {
+      'Mahnklage': 'Mahnklage',
+      'Klage': 'Klage',
+      'Zahlungsbefehl': 'Zahlungsbefehl',
+      'Protokoll': 'Sonstig',
+    };
+
+    // Partei-Daten basierend auf vertretener Partei zuordnen
+    const wirSindKlaeger = vertretenePartei === 'klaeger';
+
+    // Streitgenossen berechnen aus SelectedParties
+    // Wenn wir z.B. nur 1 von 3 Beklagten vertreten, sind 2 Streitgenossen (Gegner) auf Klägerseite
+    // Genauer: Streitgenossen = Anzahl der NICHT-vertretenen Parteien auf der GEGNER-Seite
+    let calculatedStreitgenossen = 0;
+    if (selectedParties) {
+      if (wirSindKlaeger) {
+        // Wir sind Kläger → Gegner sind Beklagte
+        // Streitgenossen = Beklagte die wir NICHT vertreten (alle)
+        const totalBeklagte = data.beklagte?.length || (data.beklagterName ? 1 : 0);
+        calculatedStreitgenossen = Math.max(0, totalBeklagte - 1); // -1 weil 1 Beklagter = 0 SG
+      } else {
+        // Wir sind Beklagte → Gegner sind Kläger
+        // Streitgenossen = Kläger die wir NICHT vertreten (alle)
+        const totalKlaeger = data.klaeger?.length || (data.klaegerName ? 1 : 0);
+        calculatedStreitgenossen = Math.max(0, totalKlaeger - 1); // -1 weil 1 Kläger = 0 SG
+      }
+    }
+
+    // Unsere Partei (Mandant) - je nachdem wen wir vertreten
+    // Bei Mehrparteien: Erste ausgewählte Partei nehmen
+    const unserePartei = wirSindKlaeger
+      ? {
+          parteiName: data.klaegerName,
+          parteiStrasse: data.klaegerStrasse || '',
+          parteiPlz: data.klaegerPlz || '',
+          parteiOrt: data.klaegerOrt || '',
+          parteiLand: data.klaegerLand || '',
+        }
+      : {
+          parteiName: data.beklagterName || '',
+          parteiStrasse: data.beklagterStrasse || '',
+          parteiPlz: data.beklagterPlz || '',
+          parteiOrt: data.beklagterOrt || '',
+          parteiLand: '',
+        };
+
+    // Unsere Kanzlei - aus dem Dokument extrahieren
+    // Wenn wir Kläger vertreten: Klagevertreter = unsere Kanzlei
+    // Wenn wir Beklagte vertreten: Keine Kanzlei im Dokument (wir sind noch nicht eingetragen)
+    const unsereKanzlei = wirSindKlaeger && data.klagevertreterName
+      ? {
+          kanzleiName: data.klagevertreterName,
+          kanzleiStrasse: data.klagevertreterStrasse || '',
+          kanzleiPlz: data.klagevertreterPlz || '',
+          kanzleiOrt: data.klagevertreterOrt || '',
+        }
+      : {}; // Bei Beklagten-Vertretung: Kanzlei nicht überschreiben
+
+    // CaseMetadata aktualisieren - alle Parteien speichern
+    setCaseMetadata(prev => ({
+      ...prev,
+      // GZ und Gericht aus Klage
+      geschaeftszahl: data.klageGZ,
+      gericht: data.klageGericht,
+      // Unsere Partei (Mandant)
+      ...unserePartei,
+      // Unsere Kanzlei (wenn aus Dokument extrahiert)
+      ...unsereKanzlei,
+      // Zivilprozess-Daten: ALLE Parteien aus dem Dokument + wer wir vertreten
+      zivilprozess: {
+        // Wer sind wir?
+        vertretenePartei: vertretenePartei,
+        // Kläger (aus Dokument)
+        klaegerName: data.klaegerName,
+        klaegerStrasse: data.klaegerStrasse || '',
+        klaegerPlz: data.klaegerPlz || '',
+        klaegerOrt: data.klaegerOrt || '',
+        klaegerLand: data.klaegerLand || '',
+        klaegerGeburtsdatum: data.klaegerGeburtsdatum || '',
+        // Klagevertreter (aus Dokument)
+        klagevertreterName: data.klagevertreterName || '',
+        klagevertreterStrasse: data.klagevertreterStrasse || '',
+        klagevertreterPlz: data.klagevertreterPlz || '',
+        klagevertreterOrt: data.klagevertreterOrt || '',
+        klagevertreterCode: data.klagevertreterCode || '',
+        klagevertreterZeichen: '',
+        // Beklagte (aus Dokument)
+        beklagterName: data.beklagterName || '',
+        beklagterStrasse: data.beklagterStrasse || '',
+        beklagterPlz: data.beklagterPlz || '',
+        beklagterOrt: data.beklagterOrt || '',
+        beklagterLand: '',
+        beklagterGeburtsdatum: '',
+        // Beklagtenvertreter (ggf. wir selbst wenn vertretenePartei === 'beklagte')
+        beklagtenvertreterName: '',
+        beklagtenvertreterStrasse: '',
+        beklagtenvertreterPlz: '',
+        beklagtenvertreterOrt: '',
+        beklagtenvertreterCode: '',
+        beklagtenvertreterZeichen: '',
+        // Verfahren
+        klageArt: klageArtMap[data.klageArt] || 'Sonstig',
+        klageGericht: data.klageGericht,
+        gerichtsabteilung: '',
+        klageGZ: data.klageGZ,
+        einbringungsDatum: data.einbringungsDatum || '',
+        fallcode: data.fallcode || '',
+        klagegegenstand: data.klagegegenstand || '',
+        // Forderung
+        kapitalforderung: data.kapitalforderung,
+        nebenforderung: data.nebenforderung || 0,
+        zinsenProzent: data.zinsenProzent,
+        zinsenAb: data.zinsenAb || '',
+        verfahrensStatus: 'offen',
+      },
+    }));
+
+    // BMGL aus Kapitalforderung setzen
+    setBmgl(data.kapitalforderung);
+
+    // Kanzleidaten speichern, wenn aus Dokument extrahiert (nur bei Kläger-Vertretung)
+    if (wirSindKlaeger && data.klagevertreterName) {
+      saveKanzleiData({
+        kanzleiName: data.klagevertreterName,
+        kanzleiStrasse: data.klagevertreterStrasse || '',
+        kanzleiPlz: data.klagevertreterPlz || '',
+        kanzleiOrt: data.klagevertreterOrt || '',
+      });
+    }
+
+    // Streitgenossen setzen wenn berechnet
+    if (calculatedStreitgenossen > 0) {
+      setAdditionalParties(calculatedStreitgenossen);
+    }
+
+    // Leistung hinzufügen (Klage/KB/Einspruch oder Tagsatzung bei Protokoll)
+    if (leistung) {
+      // Bei Protokoll: Datum aus protokoll.datum nehmen
+      const isProtokoll = data.dokumentTyp === 'Protokoll';
+      const leistungDatum = isProtokoll && data.protokoll?.datum
+        ? data.protokoll.datum
+        : (data.einbringungsDatum || new Date().toISOString().split('T')[0]);
+
+      // Bei Tagsatzung: durationHours = halbe Stunden (WICHTIG: nicht Stunden!)
+      const isHearing = leistung.durationHalbeStunden !== undefined && leistung.durationHalbeStunden > 0;
+
+      const newService: LegalService = {
+        id: crypto.randomUUID(),
+        date: leistungDatum,
+        label: leistung.label,
+        type: leistung.serviceType,
+        esMultiplier: leistung.esMultiplier,
+        includeErv: !isHearing,  // ERV nur bei Schriftsätzen, nicht bei Hearings
+        isInitiating: !isHearing,  // Einleitender Schriftsatz (nicht bei Hearings)
+        durationHours: leistung.durationHalbeStunden || 0,  // Bei Hearing: halbe Stunden
+        catalogId: leistung.catalogId,
+      };
+      setServices(prev => [newService, ...prev]);
+    }
+  };
+
+  // Handler zum Leeren aller Zivilprozessdaten (Felder bleiben erhalten, nur leer)
+  const handleClearZivilprozessData = () => {
+    setCaseMetadata(prev => ({
+      ...prev,
+      zivilprozess: { ...DEFAULT_ZIVILPROZESS_METADATA },
     }));
     setBmgl(0);
   };
@@ -317,6 +542,9 @@ const App: React.FC = () => {
     setVstrafServices(k.state.vstrafServices);
     setVstrafStreitgenossen(k.state.vstrafStreitgenossen);
     setVstrafErfolgszuschlag(k.state.vstrafErfolgszuschlag);
+    // Globale ES-Einstellung (mit Fallback für alte Kostennoten)
+    setMitES(k.state.mitES ?? true);
+    setAuswaerts(k.state.auswaerts ?? true);
   };
 
   // Aktuellen State als Kostennote speichern
@@ -349,6 +577,8 @@ const App: React.FC = () => {
         vstrafServices,
         vstrafStreitgenossen,
         vstrafErfolgszuschlag,
+        mitES,
+        auswaerts,
       },
     };
     saveKostennote(updated);
@@ -362,7 +592,7 @@ const App: React.FC = () => {
       saveCurrentKostennote();
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [caseMode, isVatFree, bmgl, procedureType, additionalParties, autoGgg, manualGgg, isVerbandsklage, services, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag, caseMetadata]);
+  }, [caseMode, isVatFree, bmgl, procedureType, additionalParties, autoGgg, manualGgg, isVerbandsklage, services, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag, mitES, auswaerts, caseMetadata]);
 
   // Handlers für Kostennoten-Verwaltung
   const handleNewKostennote = () => {
@@ -469,9 +699,14 @@ const App: React.FC = () => {
         isVatFree,
       });
     }
+    // Globalen ES-Multiplier auf alle Services anwenden
+    const effectiveServices = services.map(s => ({
+      ...s,
+      esMultiplier: globalESMultiplier,
+    }));
     return calculateCosts(
       bmgl * 100,
-      services,
+      effectiveServices,
       manualGgg,
       isVatFree,
       additionalParties,
@@ -479,7 +714,7 @@ const App: React.FC = () => {
       isVerbandsklage,
       procedureType
     );
-  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, procedureType, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag]);
+  }, [caseMode, bmgl, services, manualGgg, isVatFree, additionalParties, autoGgg, isVerbandsklage, procedureType, courtType, strafServices, strafStreitgenossen, erfolgszuschlagProzent, haftBmglStufe, haftServices, vstrafStufe, vstrafVerfallswert, vstrafServices, vstrafStreitgenossen, vstrafErfolgszuschlag, globalESMultiplier]);
 
   // --- Tariff Info ---
   const tariffInfo = useMemo(() => {
@@ -816,6 +1051,8 @@ const App: React.FC = () => {
       vstrafServices,
       vstrafStreitgenossen,
       vstrafErfolgszuschlag,
+      mitES,
+      auswaerts,
     };
     const csv = exportToCSV(state);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -905,6 +1142,10 @@ const App: React.FC = () => {
       'GESCHWORENEN': 'Geschworenengericht',
     };
 
+    // TP 3A Basiswert für Tagsatzungs-Variante ermitteln (in Cents)
+    const tp3aBasisResult = getTariffBase(Math.round(effectiveBmgl * 100), 'TP3A');
+    const tp3aBasis = tp3aBasisResult.base;
+
     generateKostenverzeichnisPDF(
       results,
       effectiveBmgl,
@@ -923,7 +1164,14 @@ const App: React.FC = () => {
         vstrafVerfallswert: vstrafVerfallswert,
         caseMetadata: caseMetadata,
         exekutionMetadata: caseMetadata.exekution,
+        zivilprozessMetadata: caseMetadata.zivilprozess,
         printOptions: printOptions,
+        // Tagsatzungs-Variante
+        tagsatzungVariante: tagsatzungVariante,
+        tagsatzungDatum: tagsatzungDatum,
+        tp3aBasis: tp3aBasis,
+        esMultiplier: globalESMultiplier,  // 0 = kein ES, 1 = einfach, 2 = doppelt
+        isAuswaerts: auswaerts,
       }
     );
   };
@@ -1030,12 +1278,82 @@ const App: React.FC = () => {
                 >
                   <BookOpen className="h-5 w-5" /> Wiki
                 </button>
-                <button
-                  onClick={handleDownload}
-                  className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg shadow-blue-600/20"
-                >
-                  <Download className="h-5 w-5" /> PDF Export
-                </button>
+                {/* PDF Export mit ES-Optionen und Tagsatzungs-Option */}
+                <div className="flex items-center gap-3">
+                  {/* GLOBALE ES-Einstellung (beeinflusst ALLE Leistungen in der Kostennote) */}
+                  {caseMode === CaseMode.CIVIL && (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10">
+                      {/* ES Toggle - immer "ES", grün wenn aktiv, grau wenn nicht */}
+                      <button
+                        onClick={() => setMitES(!mitES)}
+                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                          mitES
+                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                            : 'bg-slate-600/50 text-white/40 hover:bg-slate-600 hover:text-white/60'
+                        }`}
+                        title={mitES ? 'Einheitssatz aktiv (für alle Leistungen)' : 'Klicken für Einheitssatz'}
+                      >
+                        ES
+                      </button>
+
+                      {/* Auswärts Toggle - Nur aktiv wenn ES an */}
+                      <button
+                        onClick={() => mitES && setAuswaerts(!auswaerts)}
+                        disabled={!mitES}
+                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                          !mitES
+                            ? 'bg-white/5 text-white/20 cursor-not-allowed'
+                            : auswaerts
+                              ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
+                              : 'bg-white/10 text-white/50 hover:bg-white/20'
+                        }`}
+                        title={!mitES ? 'Nur bei ES relevant' : (auswaerts ? 'Auswärts → doppelter ES (100%)' : 'Nicht auswärts → einfacher ES (50%)')}
+                      >
+                        auswärts
+                      </button>
+
+                      {/* Status-Badge - Einzelabrechnung prominent in grün */}
+                      <span className={`px-3 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+                        !mitES
+                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                          : auswaerts
+                            ? 'bg-amber-500/30 text-amber-300'
+                            : 'bg-blue-500/30 text-blue-300'
+                      }`}>
+                        {!mitES ? 'Einzelabrechnung' : (auswaerts ? '2× ES' : '1× ES')}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* PDF Export Button mit integrierter Tagsatzungs-Option */}
+                  <div className="flex items-stretch rounded-2xl overflow-hidden shadow-lg shadow-blue-600/20">
+                    {/* Tagsatzungs-Option als linker Tab (nur bei CIVIL) */}
+                    {caseMode === CaseMode.CIVIL && (
+                      <label className={`flex items-center gap-2 px-4 py-4 cursor-pointer transition-all duration-200 border-r border-blue-700/50 ${
+                        tagsatzungVariante
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                          : 'bg-slate-700 hover:bg-slate-600 text-white/70 hover:text-white'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={tagsatzungVariante}
+                          onChange={(e) => setTagsatzungVariante(e.target.checked)}
+                          className="w-4 h-4 rounded border-2 border-white/50 text-amber-500 focus:ring-0 focus:ring-offset-0 bg-white/20 cursor-pointer"
+                        />
+                        <span className="text-sm font-semibold whitespace-nowrap">
+                          + Tagsatzung
+                        </span>
+                      </label>
+                    )}
+                    {/* PDF Export Button */}
+                    <button
+                      onClick={handleDownload}
+                      className="flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all min-w-[140px]"
+                    >
+                      <Download className="h-5 w-5" /> PDF Export
+                    </button>
+                  </div>
+                </div>
               </>
             ) : (
               <button
@@ -1068,13 +1386,24 @@ const App: React.FC = () => {
               />
             )}
 
+            {/* Klage/Zahlungsbefehl Upload (nur bei Zivilprozess) */}
+            {procedureType === ProcedureType.ZIVILPROZESS && (
+              <ZivilprozessUpload
+                apiKey={process.env.OPENROUTER_API_KEY || ''}
+                onDataExtracted={handleZivilprozessDataExtracted}
+              />
+            )}
+
             {/* Falldaten-Formular */}
             <CaseMetadataForm
               metadata={caseMetadata}
               onChange={setCaseMetadata}
               onKanzleiChange={handleKanzleiChange}
               procedureType={procedureType}
-              onClearExekution={procedureType === ProcedureType.EXEKUTION ? handleClearExekutionData : undefined}
+              onClearExekution={procedureType === ProcedureType.EXEKUTION && caseMetadata.exekution ? handleClearExekutionData : undefined}
+              onClearZivilprozess={procedureType === ProcedureType.ZIVILPROZESS && caseMetadata.zivilprozess ? handleClearZivilprozessData : undefined}
+              onClearKanzlei={handleClearKanzleiData}
+              onClearTiteldaten={handleClearTiteldaten}
               printOptions={printOptions}
               onPrintOptionsChange={setPrintOptions}
             />
@@ -2008,8 +2337,8 @@ const App: React.FC = () => {
                             </div>
                           )}
 
-                          {/* ES Multiplier für Tagsatzungen */}
-                          <div className="space-y-2">
+                          {/* ES Multiplier für Tagsatzungen - ausgegraut wenn global Einzelabrechnung */}
+                          <div className={`space-y-2 transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
                               <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${isTP8 ? 'text-red-700 bg-red-100 border-red-300' : isTP7 ? 'text-blue-700 bg-blue-100 border-blue-300' : 'text-blue-600 bg-blue-50 border-blue-100'}`}>
@@ -2021,7 +2350,7 @@ const App: React.FC = () => {
                                 Kein Einheitssatz bei TP 8 (§ 23 Abs. 1 RATG)
                               </div>
                             ) : (
-                            <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                            <div className={`flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner ${!mitES ? 'pointer-events-none' : ''}`}>
                               {[
                                 { val: 0, label: 'keiner' },
                                 { val: 1, label: 'einfach' },
@@ -2030,6 +2359,7 @@ const App: React.FC = () => {
                                 <button
                                   key={opt.val}
                                   onClick={() => updateService(s.id, { esMultiplier: opt.val })}
+                                  disabled={!mitES}
                                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${s.esMultiplier === opt.val ? 'text-blue-700 bg-white shadow-sm ring-1 ring-blue-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
                                 >
                                   {opt.label}
@@ -2072,8 +2402,8 @@ const App: React.FC = () => {
                                   </div>
                                 )}
 
-                                {/* 3. ES-Zuschlag (auf Entlohnung + Wartezeit) */}
-                                {s.esMultiplier > 0 && (
+                                {/* 3. ES-Zuschlag (auf Entlohnung + Wartezeit) - nur wenn global ES aktiv */}
+                                {mitES && s.esMultiplier > 0 && (
                                   <div className="flex justify-between items-center">
                                     <span className="text-xs text-slate-500">+ ES ({s.esMultiplier === 1 ? 'einfach' : 'doppelt'})</span>
                                     <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(esZuschlag)}</span>
@@ -2253,8 +2583,8 @@ const App: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Einheitssatz */}
-                          <div className="space-y-2">
+                          {/* Einheitssatz - ausgegraut wenn global Einzelabrechnung */}
+                          <div className={`space-y-2 transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
                               <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${isKeinES ? 'text-red-600 bg-red-50 border-red-200' : 'text-blue-600 bg-blue-50 border-blue-100'}`}>
@@ -2266,11 +2596,12 @@ const App: React.FC = () => {
                                 Kein Einheitssatz bei TP {tpType.replace('TP', '')} (§ 23 Abs. 1 RATG)
                               </div>
                             ) : (
-                            <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                            <div className={`flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner ${!mitES ? 'pointer-events-none' : ''}`}>
                               {esOptions.map((opt) => (
                                 <button
                                   key={opt.val}
                                   onClick={() => updateService(s.id, { esMultiplier: opt.val })}
+                                  disabled={!mitES}
                                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${s.esMultiplier === opt.val ? 'text-blue-700 bg-white shadow-sm ring-1 ring-blue-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
                                 >
                                   {opt.label}
@@ -2363,8 +2694,8 @@ const App: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* 3. Einheitssatz (falls vorhanden) */}
-                              {s.esMultiplier > 0 && (
+                              {/* 3. Einheitssatz (falls vorhanden) - nur wenn global ES aktiv */}
+                              {mitES && s.esMultiplier > 0 && (
                                 <div className="flex justify-between items-center">
                                   <span className="text-xs text-slate-500">Einheitssatz {(esRate * 100).toFixed(0)}%</span>
                                   <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(esZuschlag)}</span>
@@ -2813,15 +3144,15 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Einheitssatz */}
-                        <div className="space-y-2">
+                        {/* Einheitssatz - ausgegraut wenn global Einzelabrechnung */}
+                        <div className={`space-y-2 transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
                             <span className="text-[10px] font-black text-red-600 uppercase bg-red-50 px-2 py-1 rounded-lg border border-red-100">
                               {esLabel}
                             </span>
                           </div>
-                          <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                          <div className={`flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner ${!mitES ? 'pointer-events-none' : ''}`}>
                             {[
                               { val: 0, label: 'keiner' },
                               { val: 1, label: 'einfach' },
@@ -2830,6 +3161,7 @@ const App: React.FC = () => {
                               <button
                                 key={opt.val}
                                 onClick={() => updateStrafService(s.id, { esMultiplier: opt.val })}
+                                disabled={!mitES}
                                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${s.esMultiplier === opt.val ? 'text-red-700 bg-white shadow-sm ring-1 ring-red-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
                               >
                                 {opt.label}
@@ -2884,8 +3216,8 @@ const App: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* 3. ES-Zuschlag */}
-                              {s.esMultiplier > 0 && (
+                              {/* 3. ES-Zuschlag - nur wenn global ES aktiv */}
+                              {mitES && s.esMultiplier > 0 && (
                                 <div className="flex justify-between items-center">
                                   <span className="text-xs text-slate-500">+ ES ({esLabel} = {(esRate * 100).toFixed(0)}%)</span>
                                   <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(esZuschlag)}</span>
@@ -3016,15 +3348,15 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Einheitssatz für Schriftsätze (analog TP 3B RATG) */}
-                        <div className="space-y-2">
+                        {/* Einheitssatz für Schriftsätze (analog TP 3B RATG) - ausgegraut wenn global Einzelabrechnung */}
+                        <div className={`space-y-2 transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
                             <span className="text-[10px] font-black text-red-600 uppercase bg-red-50 px-2 py-1 rounded-lg border border-red-100">
                               {ssEsLabel}
                             </span>
                           </div>
-                          <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                          <div className={`flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner ${!mitES ? 'pointer-events-none' : ''}`}>
                             {[
                               { val: 0, label: 'keiner' },
                               { val: 1, label: '1×' },
@@ -3035,6 +3367,7 @@ const App: React.FC = () => {
                               <button
                                 key={opt.val}
                                 onClick={() => updateStrafService(s.id, { esMultiplier: opt.val })}
+                                disabled={!mitES}
                                 className={`flex-1 py-2 rounded-lg text-[11px] font-bold transition-all duration-200 ${s.esMultiplier === opt.val ? 'text-red-700 bg-white shadow-sm ring-1 ring-red-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
                               >
                                 {opt.label}
@@ -3108,8 +3441,8 @@ const App: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* 3. ES-Zuschlag */}
-                              {s.esMultiplier > 0 && (
+                              {/* 3. ES-Zuschlag - nur wenn global ES aktiv */}
+                              {mitES && s.esMultiplier > 0 && (
                                 <div className="flex justify-between items-center">
                                   <span className="text-xs text-slate-500">+ ES ({ssEsLabel} = {(ssEsRate * 100).toFixed(0)}%)</span>
                                   <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(ssEsZuschlag)}</span>
@@ -3284,15 +3617,15 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Einheitssatz - TP 7/2/Zuwarten: max einfach, andere: bis 4× */}
-                        <div className="space-y-2">
+                        {/* Einheitssatz - TP 7/2/Zuwarten: max einfach, andere: bis 4× - ausgegraut wenn global Einzelabrechnung */}
+                        <div className={`space-y-2 transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Einheitssatz</span>
                             <span className="text-[10px] font-black text-orange-600 uppercase bg-orange-50 px-2 py-1 rounded-lg border border-orange-100">
                               {ratgEsLabel}
                             </span>
                           </div>
-                          <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                          <div className={`flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner ${!mitES ? 'pointer-events-none' : ''}`}>
                             {(isZeitgebuehr
                               ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }]
                               : [
@@ -3306,6 +3639,7 @@ const App: React.FC = () => {
                               <button
                                 key={opt.val}
                                 onClick={() => updateStrafService(s.id, { esMultiplier: opt.val })}
+                                disabled={!mitES}
                                 className={`flex-1 py-2 rounded-lg text-[11px] font-bold transition-all duration-200 ${s.esMultiplier === opt.val ? 'text-orange-700 bg-white shadow-sm ring-1 ring-orange-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
                               >
                                 {opt.label}
@@ -3360,8 +3694,8 @@ const App: React.FC = () => {
                                 <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(ratgBasisbetrag)}</span>
                               </div>
 
-                              {/* 2. ES-Zuschlag */}
-                              {s.esMultiplier > 0 && (
+                              {/* 2. ES-Zuschlag - nur wenn global ES aktiv */}
+                              {mitES && s.esMultiplier > 0 && (
                                 <div className="flex justify-between items-center">
                                   <span className="text-xs text-slate-500">+ ES ({ratgEsLabel} = {(ratgEsRate * 100).toFixed(0)}%)</span>
                                   <span className="font-mono text-xs font-bold text-slate-700">{formatEuro(ratgEsZuschlag)}</span>
@@ -3789,9 +4123,9 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Einheitssatz für RATG Kommissionen (TP 7/2) und AHK Tagsatzungen - nur einfach möglich */}
+                        {/* Einheitssatz für RATG Kommissionen (TP 7/2) und AHK Tagsatzungen - nur einfach möglich - ausgegraut wenn global Einzelabrechnung */}
                         {(isRATGKommission || isAHKTagsatzung) && (
-                          <div className="space-y-2">
+                          <div className={`space-y-2 transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Einheitssatz</span>
                               <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${
@@ -3800,11 +4134,12 @@ const App: React.FC = () => {
                                 {s.esMultiplier === 0 ? 'keiner' : 'einfach'}
                               </span>
                             </div>
-                            <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                            <div className={`flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner ${!mitES ? 'pointer-events-none' : ''}`}>
                               {[{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }].map((opt) => (
                                 <button
                                   key={opt.val}
                                   onClick={() => updateHaftService(s.id, { esMultiplier: opt.val })}
+                                  disabled={!mitES}
                                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
                                     s.esMultiplier === opt.val
                                       ? (isAHKTagsatzung ? 'text-amber-800 bg-white shadow-sm ring-1 ring-amber-500/20' : 'text-blue-800 bg-white shadow-sm ring-1 ring-blue-500/20')
@@ -3828,7 +4163,7 @@ const App: React.FC = () => {
                               <span className="text-xs text-slate-600">Entlohnung ({s.durationHalbeStunden} × ½ Std.)</span>
                               <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(entlohnung)}</span>
                             </div>
-                            {(isRATGKommission || isAHKTagsatzung) && esZuschlag > 0 && (
+                            {mitES && (isRATGKommission || isAHKTagsatzung) && esZuschlag > 0 && (
                               <div className="flex justify-between items-center">
                                 <span className="text-xs text-slate-600">Einheitssatz {Math.round(esRate * 100)}%</span>
                                 <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(esZuschlag)}</span>
@@ -3856,8 +4191,8 @@ const App: React.FC = () => {
                     {/* Schriftsätze (ohne DAUER) - AHK und RATG */}
                     {isSchriftsatz && (
                       <div className="space-y-4 pt-2">
-                        {/* Einheitssatz - RATG: alle Optionen, AHK: nur keiner/einfach */}
-                        <div className="space-y-2">
+                        {/* Einheitssatz - RATG: alle Optionen, AHK: nur keiner/einfach - ausgegraut wenn global Einzelabrechnung */}
+                        <div className={`space-y-2 transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Einheitssatz</span>
                             <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${
@@ -3866,7 +4201,7 @@ const App: React.FC = () => {
                               {s.esMultiplier === 0 ? 'keiner' : s.esMultiplier === 1 ? 'einfach' : s.esMultiplier === 2 ? 'doppelt' : s.esMultiplier === 3 ? 'dreifach' : 'vierfach'}
                             </span>
                           </div>
-                          <div className="flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner">
+                          <div className={`flex p-1 gap-1 bg-slate-200/60 rounded-xl shadow-inner ${!mitES ? 'pointer-events-none' : ''}`}>
                             {(isAHKSchriftsatz
                               ? [{ val: 0, label: 'keiner' }, { val: 1, label: 'einfach' }]
                               : [
@@ -3880,6 +4215,7 @@ const App: React.FC = () => {
                               <button
                                 key={opt.val}
                                 onClick={() => updateHaftService(s.id, { esMultiplier: opt.val })}
+                                disabled={!mitES}
                                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
                                   s.esMultiplier === opt.val
                                     ? (isAHKSchriftsatz ? 'text-amber-800 bg-white shadow-sm ring-1 ring-amber-500/20' : 'text-blue-800 bg-white shadow-sm ring-1 ring-blue-500/20')
@@ -3940,7 +4276,7 @@ const App: React.FC = () => {
                               <span className="text-xs text-slate-600">Entlohnung</span>
                               <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(entlohnung)}</span>
                             </div>
-                            {esZuschlag > 0 && (
+                            {mitES && esZuschlag > 0 && (
                               <div className="flex justify-between items-center">
                                 <span className="text-xs text-slate-600">Einheitssatz {Math.round(esRate * 100)}%</span>
                                 <span className="font-mono text-xs font-bold text-slate-800">{formatEuro(esZuschlag)}</span>
@@ -4335,19 +4671,19 @@ const App: React.FC = () => {
                       </div>
                     )}
 
-                    {/* ES Auswahl */}
-                    <div className="flex items-center justify-between">
+                    {/* ES Auswahl - ausgegraut wenn global Einzelabrechnung */}
+                    <div className={`flex items-center justify-between transition-all duration-200 ${!mitES ? 'opacity-40' : ''}`}>
                       <span className="text-xs text-slate-600 font-bold flex items-center gap-2">
                         <Layers className="h-3.5 w-3.5 text-slate-400" /> Einheitssatz
                       </span>
-                      <div className="flex gap-1">
+                      <div className={`flex gap-1 ${!mitES ? 'pointer-events-none' : ''}`}>
                         {[0, 1, 2, 3, 4].map(mult => {
                           const maxMult = (isVH || isZeitgebuehr) ? 1 : 4;
                           const disabled = mult > maxMult;
                           return (
                             <button
                               key={mult}
-                              disabled={disabled}
+                              disabled={!mitES || disabled}
                               onClick={() => updateVstrafService(s.id, { esMultiplier: mult })}
                               className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
                                 disabled ? 'bg-slate-100 text-slate-300 cursor-not-allowed' :
@@ -4397,7 +4733,7 @@ const App: React.FC = () => {
                         <span className="text-slate-600">{tpLabel} Entlohnung</span>
                         <span className="font-mono font-bold text-slate-800">{formatEuro(entlohnung)}</span>
                       </div>
-                      {esZuschlag > 0 && (
+                      {mitES && esZuschlag > 0 && (
                         <div className="flex justify-between text-xs">
                           <span className="text-slate-600">+ ES {(esRate * 100).toFixed(0)}%</span>
                           <span className="font-mono font-bold text-slate-700">{formatEuro(esZuschlag)}</span>

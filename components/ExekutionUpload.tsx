@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
-import { Upload, FileText, X, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, X, Loader2, CheckCircle, AlertCircle, Home } from 'lucide-react';
 import { extractExekutionDataFromPDF, fileToBase64, type ExtractedExekutionData } from '../lib/documentExtractor';
+import { saveHeimkanzlei } from '../lib/storage';
 
 interface Props {
-  onDataExtracted: (data: ExtractedExekutionData) => void;
+  onDataExtracted: (data: ExtractedExekutionData, saveAsHeimkanzlei: boolean) => void;
   apiKey: string;
 }
 
@@ -19,6 +20,7 @@ export function ExekutionUpload({ onDataExtracted, apiKey }: Props) {
   const [includeTiteldaten, setIncludeTiteldaten] = useState(true);
   const [includeExekution, setIncludeExekution] = useState(true);
   const [includeKanzlei, setIncludeKanzlei] = useState(true);
+  const [saveAsHeimkanzlei, setSaveAsHeimkanzlei] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
@@ -88,7 +90,18 @@ export function ExekutionUpload({ onDataExtracted, apiKey }: Props) {
         kanzleiPlz: includeKanzlei ? extractedData.kanzleiPlz : undefined,
         kanzleiOrt: includeKanzlei ? extractedData.kanzleiOrt : undefined,
       };
-      onDataExtracted(dataToApply);
+
+      // Als Heimkanzlei speichern wenn gewünscht
+      if (saveAsHeimkanzlei && includeKanzlei && extractedData.kanzleiName) {
+        saveHeimkanzlei({
+          kanzleiName: extractedData.kanzleiName,
+          kanzleiStrasse: extractedData.kanzleiStrasse || '',
+          kanzleiPlz: extractedData.kanzleiPlz || '',
+          kanzleiOrt: extractedData.kanzleiOrt || '',
+        });
+      }
+
+      onDataExtracted(dataToApply, saveAsHeimkanzlei);
       // Reset
       setFile(null);
       setExtractedData(null);
@@ -290,6 +303,19 @@ export function ExekutionUpload({ onDataExtracted, apiKey }: Props) {
                   </p>
                 )}
               </div>
+              {/* Heimkanzlei-Option */}
+              {includeKanzlei && (
+                <label className="flex items-center gap-2 mt-2 pt-2 border-t border-emerald-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={saveAsHeimkanzlei}
+                    onChange={(e) => setSaveAsHeimkanzlei(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-blue-500 focus:ring-blue-500"
+                  />
+                  <Home className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="text-xs text-slate-700 font-medium">Als Heimkanzlei speichern</span>
+                </label>
+              )}
             </div>
           )}
 
