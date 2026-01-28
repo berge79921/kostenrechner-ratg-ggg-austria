@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, FileText, Building2, User, Scale, Calendar, Trash2, Printer, Gavel, Save, RotateCcw, Home } from 'lucide-react';
-import type { CaseMetadata, KanzleiData, ExekutionMetadata, TitelArt, ZivilprozessMetadata, KlageArt, VerfahrensStatus, ProcedureType } from '../types';
-import { DEFAULT_EXEKUTION_METADATA, DEFAULT_ZIVILPROZESS_METADATA } from '../types';
+import { ChevronDown, ChevronUp, FileText, Building2, User, Scale, Calendar, Trash2, Printer, Gavel, Save, RotateCcw, Home, Plus, Landmark } from 'lucide-react';
+import type { CaseMetadata, KanzleiData, ExekutionMetadata, TitelArt, ZivilprozessMetadata, KlageArt, VerfahrensStatus, ProcedureType, Drittschuldner, DrittschuldnerTyp } from '../types';
+import { DEFAULT_EXEKUTION_METADATA, DEFAULT_ZIVILPROZESS_METADATA, BEKANNTE_DRITTSCHULDNER } from '../types';
 import { loadHeimkanzlei, saveHeimkanzlei, hasHeimkanzlei } from '../lib/storage';
 
 // Druckoptionen für PDF-Export
@@ -622,6 +622,235 @@ export const CaseMetadataForm: React.FC<Props> = ({
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Drittschuldner (§ 294 EO) */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Landmark className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">Drittschuldner (§ 294 EO)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const newDs: Drittschuldner = {
+                        id: crypto.randomUUID(),
+                        typ: 'Bank',
+                        name: '',
+                        strasse: '',
+                        plz: '',
+                        ort: '',
+                      };
+                      updateExekutionField('drittschuldner', [...(exekution.drittschuldner || []), newDs]);
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded transition-colors"
+                    title="Drittschuldner hinzufügen"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Hinzufügen
+                  </button>
+                </div>
+
+                {/* Schnellauswahl bekannter Drittschuldner */}
+                <div className="mb-3">
+                  <label className={labelClass}>Schnellauswahl</label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const selected = BEKANNTE_DRITTSCHULDNER.find(d => d.id === e.target.value);
+                      if (selected) {
+                        const newDs: Drittschuldner = {
+                          id: crypto.randomUUID(),
+                          typ: selected.typ,
+                          name: selected.name,
+                          strasse: selected.strasse,
+                          plz: selected.plz,
+                          ort: selected.ort,
+                          iban: selected.iban,
+                          bic: selected.bic,
+                          rechtsgrund: selected.typ === 'PVA' ? 'Pension' : 'Kontoguthaben',
+                        };
+                        updateExekutionField('drittschuldner', [...(exekution.drittschuldner || []), newDs]);
+                      }
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">-- Bekannte Drittschuldner --</option>
+                    <optgroup label="Pensionsversicherung">
+                      {BEKANNTE_DRITTSCHULDNER.filter(d => d.typ === 'PVA').map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Banken">
+                      {BEKANNTE_DRITTSCHULDNER.filter(d => d.typ === 'Bank').map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
+                {/* Liste der Drittschuldner */}
+                {(exekution.drittschuldner || []).map((ds, index) => (
+                  <div key={ds.id} className="mb-3 p-3 bg-slate-800/40 border border-cyan-500/20 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-cyan-300">Drittschuldner {index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const updated = (exekution.drittschuldner || []).filter(d => d.id !== ds.id);
+                          updateExekutionField('drittschuldner', updated);
+                        }}
+                        className="text-red-400 hover:text-red-300 p-1"
+                        title="Entfernen"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className={labelClass}>Typ</label>
+                        <select
+                          value={ds.typ}
+                          onChange={(e) => {
+                            const updated = (exekution.drittschuldner || []).map(d =>
+                              d.id === ds.id ? { ...d, typ: e.target.value as DrittschuldnerTyp } : d
+                            );
+                            updateExekutionField('drittschuldner', updated);
+                          }}
+                          className={inputClass}
+                        >
+                          <option value="Bank">Bank</option>
+                          <option value="PVA">PVA</option>
+                          <option value="Arbeitgeber">Arbeitgeber</option>
+                          <option value="Sonstig">Sonstig</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className={labelClass}>Name</label>
+                        <input
+                          type="text"
+                          value={ds.name}
+                          onChange={(e) => {
+                            const updated = (exekution.drittschuldner || []).map(d =>
+                              d.id === ds.id ? { ...d, name: e.target.value } : d
+                            );
+                            updateExekutionField('drittschuldner', updated);
+                          }}
+                          placeholder="Name des Drittschuldners"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Rechtsgrund</label>
+                        <input
+                          type="text"
+                          value={ds.rechtsgrund || ''}
+                          onChange={(e) => {
+                            const updated = (exekution.drittschuldner || []).map(d =>
+                              d.id === ds.id ? { ...d, rechtsgrund: e.target.value } : d
+                            );
+                            updateExekutionField('drittschuldner', updated);
+                          }}
+                          placeholder="z.B. Gehalt, Pension"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 mt-2">
+                      <div className="col-span-2">
+                        <label className={labelClass}>Straße</label>
+                        <input
+                          type="text"
+                          value={ds.strasse}
+                          onChange={(e) => {
+                            const updated = (exekution.drittschuldner || []).map(d =>
+                              d.id === ds.id ? { ...d, strasse: e.target.value } : d
+                            );
+                            updateExekutionField('drittschuldner', updated);
+                          }}
+                          placeholder="Straße"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>PLZ</label>
+                        <input
+                          type="text"
+                          value={ds.plz}
+                          onChange={(e) => {
+                            const updated = (exekution.drittschuldner || []).map(d =>
+                              d.id === ds.id ? { ...d, plz: e.target.value } : d
+                            );
+                            updateExekutionField('drittschuldner', updated);
+                          }}
+                          placeholder="PLZ"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Ort</label>
+                        <input
+                          type="text"
+                          value={ds.ort}
+                          onChange={(e) => {
+                            const updated = (exekution.drittschuldner || []).map(d =>
+                              d.id === ds.id ? { ...d, ort: e.target.value } : d
+                            );
+                            updateExekutionField('drittschuldner', updated);
+                          }}
+                          placeholder="Ort"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                    {ds.typ === 'Bank' && (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div>
+                          <label className={labelClass}>IBAN</label>
+                          <input
+                            type="text"
+                            value={ds.iban || ''}
+                            onChange={(e) => {
+                              const updated = (exekution.drittschuldner || []).map(d =>
+                                d.id === ds.id ? { ...d, iban: e.target.value } : d
+                              );
+                              updateExekutionField('drittschuldner', updated);
+                            }}
+                            placeholder="z.B. AT66 3225 0000 0070 6036"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>BIC</label>
+                          <input
+                            type="text"
+                            value={ds.bic || ''}
+                            onChange={(e) => {
+                              const updated = (exekution.drittschuldner || []).map(d =>
+                                d.id === ds.id ? { ...d, bic: e.target.value } : d
+                              );
+                              updateExekutionField('drittschuldner', updated);
+                            }}
+                            placeholder="z.B. RLNWATWWGTD"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Hinweis wenn keine Drittschuldner */}
+                {(!exekution.drittschuldner || exekution.drittschuldner.length === 0) && (
+                  <div className="text-xs text-slate-500 italic">
+                    Noch keine Drittschuldner angelegt. Wählen Sie aus der Schnellauswahl oder fügen Sie manuell hinzu.
+                  </div>
+                )}
               </div>
             </div>
           )}

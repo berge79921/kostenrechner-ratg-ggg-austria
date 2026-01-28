@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { TotalResult, ProcedureType, CaseMode, CaseMetadata, ExekutionMetadata, ZivilprozessMetadata } from '../types';
+import { TotalResult, ProcedureType, CaseMode, CaseMetadata, ExekutionMetadata, ZivilprozessMetadata, Drittschuldner } from '../types';
 import { formatEuro } from './calculator';
 
 // Druckoptionen für PDF-Export
@@ -812,4 +812,658 @@ export function generateKostenverzeichnisPDF(
 
   // Trigger Download
   doc.save(`Kostenverzeichnis_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
+// ============================================================================
+// FALLÜBERSICHT PDF - Exekutionsverfahren (McKinsey Style - dezent, professionell)
+// ============================================================================
+
+export interface FalluebersichtOptions {
+  caseMetadata: CaseMetadata;
+  exekutionMetadata: ExekutionMetadata;
+  bmgl?: number;
+  results?: TotalResult;
+  isVatFree?: boolean;
+  additionalParties?: number;
+}
+
+export function generateFalluebersichtPDF(options: FalluebersichtOptions) {
+  const { caseMetadata: meta, exekutionMetadata: exek, bmgl } = options;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const leftMargin = 14;
+  const rightMargin = pageWidth - 14;
+  const colMid = pageWidth / 2 + 5;
+
+  let yPos = 20;
+
+  // === HEADER ===
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('FALLÜBERSICHT', leftMargin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Datum: ${new Date().toLocaleDateString('de-AT')}`, rightMargin, yPos, { align: 'right' });
+  yPos += 6;
+
+  // Geschäftszahl + Gericht
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  if (meta.geschaeftszahl) {
+    doc.text(`GZ: ${meta.geschaeftszahl}`, leftMargin, yPos);
+  }
+  doc.setFont('helvetica', 'normal');
+  if (meta.gericht) {
+    doc.text(meta.gericht, rightMargin, yPos, { align: 'right' });
+  }
+  yPos += 4;
+
+  // Trennlinie
+  doc.setDrawColor(60);
+  doc.setLineWidth(0.5);
+  doc.line(leftMargin, yPos, rightMargin, yPos);
+  yPos += 10;
+
+  // === Hilfsfunktionen ===
+  const sectionTitle = (title: string) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text(title, leftMargin, yPos);
+    doc.setTextColor(0);
+    yPos += 5;
+  };
+
+  const labelValue = (label: string, value: string, x: number = leftMargin) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(label, x, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value || '—', x + 35, yPos);
+    yPos += 5;
+  };
+
+  const thinLine = () => {
+    doc.setDrawColor(180);
+    doc.setLineWidth(0.2);
+    doc.line(leftMargin, yPos, rightMargin, yPos);
+    yPos += 6;
+  };
+
+  // === PARTEIEN (2 Spalten) ===
+  sectionTitle('BETREIBENDE PARTEI');
+  const yBetreibend = yPos;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (meta.parteiName) doc.text(meta.parteiName, leftMargin, yPos);
+  yPos += 5;
+  if (meta.parteiStrasse) doc.text(meta.parteiStrasse, leftMargin, yPos);
+  yPos += 5;
+  const parteiOrt = [meta.parteiPlz, meta.parteiOrt].filter(Boolean).join(' ');
+  if (parteiOrt) doc.text(parteiOrt, leftMargin, yPos);
+  yPos += 5;
+
+  // Vertreter
+  if (meta.kanzleiName) {
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text('vertreten durch:', leftMargin, yPos);
+    yPos += 4;
+    doc.setTextColor(0);
+    doc.setFontSize(9);
+    doc.text(meta.kanzleiName, leftMargin, yPos);
+    yPos += 4;
+    const kanzleiOrt = [meta.kanzleiPlz, meta.kanzleiOrt].filter(Boolean).join(' ');
+    if (meta.kanzleiStrasse) { doc.text(meta.kanzleiStrasse, leftMargin, yPos); yPos += 4; }
+    if (kanzleiOrt) { doc.text(kanzleiOrt, leftMargin, yPos); yPos += 4; }
+  }
+
+  // Rechte Spalte: Verpflichtete Partei
+  let yRight = yBetreibend;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+  doc.text('VERPFLICHTETE PARTEI', colMid, yRight - 5);
+  doc.setTextColor(0);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (exek.verpflichteterName) doc.text(exek.verpflichteterName, colMid, yRight);
+  yRight += 5;
+  if (exek.verpflichteterStrasse) doc.text(exek.verpflichteterStrasse, colMid, yRight);
+  yRight += 5;
+  const verpfOrt = [exek.verpflichteterPlz, exek.verpflichteterOrt].filter(Boolean).join(' ');
+  if (verpfOrt) doc.text(verpfOrt, colMid, yRight);
+  yRight += 5;
+  if (exek.verpflichteterGeburtsdatum) {
+    doc.setFontSize(9);
+    doc.text(`geb. ${exek.verpflichteterGeburtsdatum}`, colMid, yRight);
+    yRight += 5;
+  }
+
+  yPos = Math.max(yPos, yRight) + 6;
+  thinLine();
+
+  // === EXEKUTIONSTITEL + FORDERUNG (2 Spalten) ===
+  sectionTitle('EXEKUTIONSTITEL');
+  const yTitel = yPos;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`${exek.titelArt || '—'}`, leftMargin, yPos);
+  yPos += 5;
+  doc.text(`${exek.titelGericht || '—'} ${exek.titelGZ || ''}`, leftMargin, yPos);
+  yPos += 5;
+  if (exek.titelDatum) doc.text(`vom ${exek.titelDatum}`, leftMargin, yPos);
+  yPos += 5;
+  if (exek.vollstreckbarkeitDatum) {
+    doc.setTextColor(100);
+    doc.text(`vollstreckbar seit ${exek.vollstreckbarkeitDatum}`, leftMargin, yPos);
+    doc.setTextColor(0);
+    yPos += 5;
+  }
+
+  // Rechte Spalte: Forderung
+  yRight = yTitel;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+  doc.text('FORDERUNG', colMid, yRight - 5);
+  doc.setTextColor(0);
+
+  doc.setFont('helvetica', 'normal');
+  if (exek.kapitalforderung > 0) {
+    doc.text(`Kapital: ${formatEuro(exek.kapitalforderung * 100)}`, colMid, yRight);
+    yRight += 5;
+  }
+  if (exek.zinsenProzent > 0 && exek.zinsenAb) {
+    doc.text(`+ ${exek.zinsenProzent}% Zinsen seit ${exek.zinsenAb}`, colMid, yRight);
+    yRight += 5;
+  }
+  if (exek.kostenAusTitel > 0) {
+    doc.text(`Kosten aus Titel: ${formatEuro(exek.kostenAusTitel * 100)}`, colMid, yRight);
+    yRight += 5;
+  }
+
+  yPos = Math.max(yPos, yRight) + 6;
+  thinLine();
+
+  // === DRITTSCHULDNER ===
+  const drittschuldner = exek.drittschuldner || [];
+  if (drittschuldner.length > 0) {
+    sectionTitle('DRITTSCHULDNER (§ 294 EO)');
+
+    drittschuldner.forEach((ds: Drittschuldner, index: number) => {
+      if (yPos > pageHeight - 40) { doc.addPage(); yPos = 20; }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(`${index + 1}. ${ds.name}`, leftMargin, yPos);
+      doc.setFont('helvetica', 'normal');
+      if (ds.rechtsgrund) {
+        doc.setTextColor(100);
+        doc.text(`(${ds.rechtsgrund})`, leftMargin + 80, yPos);
+        doc.setTextColor(0);
+      }
+      yPos += 5;
+
+      doc.setFontSize(9);
+      const dsAddr = [ds.strasse, [ds.plz, ds.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+      doc.text(dsAddr, leftMargin + 4, yPos);
+      yPos += 5;
+
+      if (ds.typ === 'Bank' && ds.iban) {
+        doc.setTextColor(100);
+        doc.text(`IBAN: ${ds.iban}${ds.bic ? ' | BIC: ' + ds.bic : ''}`, leftMargin + 4, yPos);
+        doc.setTextColor(0);
+        yPos += 5;
+      }
+    });
+    yPos += 2;
+    thinLine();
+  }
+
+  // === KOSTENVERZEICHNIS ===
+  const results = options.results;
+  const isVatFree = options.isVatFree ?? false;
+
+  if (results && results.lines.length > 0) {
+    if (yPos > pageHeight - 100) { doc.addPage(); yPos = 20; }
+
+    sectionTitle('KOSTENVERZEICHNIS');
+
+    // Parameter
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    if (bmgl && bmgl > 0) {
+      doc.text(`Bemessungsgrundlage: ${formatEuro(bmgl * 100)}`, leftMargin, yPos);
+      yPos += 5;
+    }
+    yPos += 3;
+
+    // Kosten-Tabelle (wie Kostenverzeichnis)
+    const tableData: any[][] = [];
+    results.lines.forEach((line) => {
+      tableData.push([
+        new Date(line.date).toLocaleDateString('de-AT'),
+        line.label,
+        line.section,
+        formatEuro(line.amountCents)
+      ]);
+    });
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Datum', 'Leistung / Position', 'Gesetzl. Basis', 'Betrag']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [50, 50, 50],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 30, halign: 'right' }
+      },
+      styles: { fontSize: 8, cellPadding: 2 },
+      margin: { left: leftMargin, right: 14 }
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 8;
+
+    // Zusammenfassung (rechtsbündig, wie Kostenverzeichnis)
+    const summaryX = pageWidth - 90;
+
+    doc.setDrawColor(150);
+    doc.line(summaryX, yPos - 2, rightMargin, yPos - 2);
+    yPos += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Verdienst Netto:', summaryX, yPos);
+    doc.text(formatEuro(results.netCents), rightMargin, yPos, { align: 'right' });
+    yPos += 5;
+
+    doc.text(`Umsatzsteuer (${isVatFree ? '0' : '20'}%):`, summaryX, yPos);
+    doc.text(formatEuro(results.vatCents), rightMargin, yPos, { align: 'right' });
+    yPos += 5;
+
+    doc.text('Barauslagen / GGG:', summaryX, yPos);
+    doc.text(formatEuro(results.gggCents), rightMargin, yPos, { align: 'right' });
+    yPos += 7;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('GESAMTSUMME:', summaryX, yPos);
+    doc.text(formatEuro(results.totalCents), rightMargin, yPos, { align: 'right' });
+  }
+
+  // === FOOTER ===
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150);
+    doc.text('Fallübersicht | RATG/GGG Kostenrechner', leftMargin, pageHeight - 10);
+    if (totalPages > 1) {
+      doc.text(`Seite ${i}/${totalPages}`, rightMargin, pageHeight - 10, { align: 'right' });
+    }
+  }
+
+  // Download
+  const filename = meta.geschaeftszahl
+    ? `Falluebersicht_${meta.geschaeftszahl.replace(/[\/\s]/g, '_')}.pdf`
+    : `Falluebersicht_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(filename);
+}
+
+// ============================================================================
+// FALLÜBERSICHT PDF - Zivilprozess (McKinsey Style)
+// ============================================================================
+
+export interface ZivilprozessFalluebersichtOptions {
+  caseMetadata: CaseMetadata;
+  zivilprozessMetadata: ZivilprozessMetadata;
+  bmgl?: number;
+  results?: TotalResult;
+  isVatFree?: boolean;
+  additionalParties?: number;
+}
+
+export function generateZivilprozessFalluebersichtPDF(options: ZivilprozessFalluebersichtOptions) {
+  const { caseMetadata: meta, zivilprozessMetadata: zivil, bmgl } = options;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const leftMargin = 14;
+  const rightMargin = pageWidth - 14;
+  const colMid = pageWidth / 2 + 5;
+
+  let yPos = 20;
+
+  // === HEADER ===
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('FALLÜBERSICHT', leftMargin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Datum: ${new Date().toLocaleDateString('de-AT')}`, rightMargin, yPos, { align: 'right' });
+  yPos += 6;
+
+  // Geschäftszahl + Gericht
+  const gz = zivil.klageGZ || meta.geschaeftszahl;
+  const gericht = zivil.klageGericht || meta.gericht;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  if (gz) doc.text(`GZ: ${gz}`, leftMargin, yPos);
+  doc.setFont('helvetica', 'normal');
+  if (gericht) doc.text(gericht, rightMargin, yPos, { align: 'right' });
+  yPos += 4;
+
+  // Trennlinie
+  doc.setDrawColor(60);
+  doc.setLineWidth(0.5);
+  doc.line(leftMargin, yPos, rightMargin, yPos);
+  yPos += 10;
+
+  // === Hilfsfunktionen ===
+  const sectionTitle = (title: string) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text(title, leftMargin, yPos);
+    doc.setTextColor(0);
+    yPos += 5;
+  };
+
+  const thinLine = () => {
+    doc.setDrawColor(180);
+    doc.setLineWidth(0.2);
+    doc.line(leftMargin, yPos, rightMargin, yPos);
+    yPos += 6;
+  };
+
+  // Bestimme wer Gegner ist
+  const wirSindKlaeger = zivil.vertretenePartei === 'klaeger';
+
+  // === KLÄGER + KLAGEVERTRETER (2 Spalten) ===
+  sectionTitle('KLÄGER');
+  const yKlaeger = yPos;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (zivil.klaegerName) doc.text(zivil.klaegerName, leftMargin, yPos);
+  yPos += 5;
+  if (zivil.klaegerStrasse) doc.text(zivil.klaegerStrasse, leftMargin, yPos);
+  yPos += 5;
+  const klaegerOrt = [zivil.klaegerPlz, zivil.klaegerOrt].filter(Boolean).join(' ');
+  if (klaegerOrt) {
+    const ortMitLand = zivil.klaegerLand ? `${klaegerOrt} (${zivil.klaegerLand})` : klaegerOrt;
+    doc.text(ortMitLand, leftMargin, yPos);
+    yPos += 5;
+  }
+  if (zivil.klaegerGeburtsdatum) {
+    doc.setFontSize(9);
+    doc.text(`geb. ${zivil.klaegerGeburtsdatum}`, leftMargin, yPos);
+    yPos += 5;
+  }
+
+  // Rechte Spalte: Klagevertreter
+  let yRight = yKlaeger;
+  const kvName = wirSindKlaeger ? meta.kanzleiName : zivil.klagevertreterName;
+  const kvStrasse = wirSindKlaeger ? meta.kanzleiStrasse : zivil.klagevertreterStrasse;
+  const kvPlz = wirSindKlaeger ? meta.kanzleiPlz : zivil.klagevertreterPlz;
+  const kvOrt = wirSindKlaeger ? meta.kanzleiOrt : zivil.klagevertreterOrt;
+  const kvCode = wirSindKlaeger ? '' : zivil.klagevertreterCode;
+
+  if (kvName) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text('KLAGEVERTRETER', colMid, yRight - 5);
+    doc.setTextColor(0);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(kvName, colMid, yRight);
+    yRight += 5;
+    if (kvStrasse) { doc.text(kvStrasse, colMid, yRight); yRight += 5; }
+    const kvOrtStr = [kvPlz, kvOrt].filter(Boolean).join(' ');
+    if (kvOrtStr) {
+      const kvText = kvCode ? `${kvOrtStr} (${kvCode})` : kvOrtStr;
+      doc.text(kvText, colMid, yRight);
+      yRight += 5;
+    }
+  }
+
+  yPos = Math.max(yPos, yRight) + 6;
+  thinLine();
+
+  // === BEKLAGTE + BEKLAGTENVERTRETER (2 Spalten) ===
+  sectionTitle('BEKLAGTE');
+  const yBeklagte = yPos;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (zivil.beklagterName) doc.text(zivil.beklagterName, leftMargin, yPos);
+  yPos += 5;
+  if (zivil.beklagterStrasse) doc.text(zivil.beklagterStrasse, leftMargin, yPos);
+  yPos += 5;
+  const beklagterOrt = [zivil.beklagterPlz, zivil.beklagterOrt].filter(Boolean).join(' ');
+  if (beklagterOrt) {
+    const ortMitLand = zivil.beklagterLand ? `${beklagterOrt} (${zivil.beklagterLand})` : beklagterOrt;
+    doc.text(ortMitLand, leftMargin, yPos);
+    yPos += 5;
+  }
+  if (zivil.beklagterGeburtsdatum) {
+    doc.setFontSize(9);
+    doc.text(`geb. ${zivil.beklagterGeburtsdatum}`, leftMargin, yPos);
+    yPos += 5;
+  }
+
+  // Rechte Spalte: Beklagtenvertreter
+  yRight = yBeklagte;
+  const bvName = wirSindKlaeger ? zivil.beklagtenvertreterName : meta.kanzleiName;
+  const bvStrasse = wirSindKlaeger ? zivil.beklagtenvertreterStrasse : meta.kanzleiStrasse;
+  const bvPlz = wirSindKlaeger ? zivil.beklagtenvertreterPlz : meta.kanzleiPlz;
+  const bvOrt = wirSindKlaeger ? zivil.beklagtenvertreterOrt : meta.kanzleiOrt;
+  const bvCode = wirSindKlaeger ? zivil.beklagtenvertreterCode : '';
+
+  if (bvName) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text('BEKLAGTENVERTRETER', colMid, yRight - 5);
+    doc.setTextColor(0);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(bvName, colMid, yRight);
+    yRight += 5;
+    if (bvStrasse) { doc.text(bvStrasse, colMid, yRight); yRight += 5; }
+    const bvOrtStr = [bvPlz, bvOrt].filter(Boolean).join(' ');
+    if (bvOrtStr) {
+      const bvText = bvCode ? `${bvOrtStr} (${bvCode})` : bvOrtStr;
+      doc.text(bvText, colMid, yRight);
+      yRight += 5;
+    }
+  }
+
+  yPos = Math.max(yPos, yRight) + 6;
+  thinLine();
+
+  // === VERFAHREN + FORDERUNG (2 Spalten) ===
+  sectionTitle('VERFAHREN');
+  const yVerfahren = yPos;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(zivil.klageArt || '—', leftMargin, yPos);
+  yPos += 5;
+  if (zivil.einbringungsDatum) {
+    doc.text(`Eingebracht: ${zivil.einbringungsDatum}`, leftMargin, yPos);
+    yPos += 5;
+  }
+  if (zivil.fallcode) {
+    doc.text(`Fallcode: ${zivil.fallcode}`, leftMargin, yPos);
+    yPos += 5;
+  }
+  if (zivil.verfahrensStatus && zivil.verfahrensStatus !== 'offen') {
+    doc.setTextColor(100);
+    doc.text(`Status: ${zivil.verfahrensStatus}`, leftMargin, yPos);
+    doc.setTextColor(0);
+    yPos += 5;
+  }
+  if (zivil.klagegegenstand) {
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(zivil.klagegegenstand, leftMargin, yPos);
+    doc.setTextColor(0);
+    yPos += 5;
+  }
+
+  // Rechte Spalte: Forderung
+  yRight = yVerfahren;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+  doc.text('FORDERUNG (= BMGL)', colMid, yRight - 5);
+  doc.setTextColor(0);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (zivil.kapitalforderung > 0) {
+    doc.text(`Kapital: ${formatEuro(zivil.kapitalforderung * 100)}`, colMid, yRight);
+    yRight += 5;
+  }
+  if (zivil.nebenforderung > 0) {
+    doc.text(`Nebenforderung: ${formatEuro(zivil.nebenforderung * 100)}`, colMid, yRight);
+    yRight += 5;
+  }
+  if (zivil.zinsenProzent > 0 && zivil.zinsenAb) {
+    doc.text(`+ ${zivil.zinsenProzent}% Zinsen seit ${zivil.zinsenAb}`, colMid, yRight);
+    yRight += 5;
+  }
+
+  // Gesamtstreitwert
+  const streitwert = (zivil.kapitalforderung || 0) + (zivil.nebenforderung || 0);
+  if (streitwert > 0) {
+    yRight += 2;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Streitwert: ${formatEuro(streitwert * 100)}`, colMid, yRight);
+    yRight += 5;
+  }
+
+  yPos = Math.max(yPos, yRight) + 6;
+  thinLine();
+
+  // === KOSTENVERZEICHNIS ===
+  const results = options.results;
+  const isVatFree = options.isVatFree ?? false;
+  const effectiveBmgl = bmgl || streitwert;
+
+  if (results && results.lines.length > 0) {
+    if (yPos > pageHeight - 100) { doc.addPage(); yPos = 20; }
+
+    sectionTitle('KOSTENVERZEICHNIS');
+
+    // Parameter
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    if (effectiveBmgl > 0) {
+      doc.text(`Bemessungsgrundlage: ${formatEuro(effectiveBmgl * 100)}`, leftMargin, yPos);
+      yPos += 5;
+    }
+    if (options.additionalParties && options.additionalParties > 0) {
+      doc.text(`Streitgenossen: ${options.additionalParties} (§ 15 RATG)`, leftMargin, yPos);
+      yPos += 5;
+    }
+    yPos += 3;
+
+    // Kosten-Tabelle
+    const tableData: any[][] = [];
+    results.lines.forEach((line) => {
+      tableData.push([
+        new Date(line.date).toLocaleDateString('de-AT'),
+        line.label,
+        line.section,
+        formatEuro(line.amountCents)
+      ]);
+    });
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Datum', 'Leistung / Position', 'Gesetzl. Basis', 'Betrag']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [50, 50, 50],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 30, halign: 'right' }
+      },
+      styles: { fontSize: 8, cellPadding: 2 },
+      margin: { left: leftMargin, right: 14 }
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 8;
+
+    // Zusammenfassung (rechtsbündig)
+    const summaryX = pageWidth - 90;
+
+    doc.setDrawColor(150);
+    doc.line(summaryX, yPos - 2, rightMargin, yPos - 2);
+    yPos += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Verdienst Netto:', summaryX, yPos);
+    doc.text(formatEuro(results.netCents), rightMargin, yPos, { align: 'right' });
+    yPos += 5;
+
+    doc.text(`Umsatzsteuer (${isVatFree ? '0' : '20'}%):`, summaryX, yPos);
+    doc.text(formatEuro(results.vatCents), rightMargin, yPos, { align: 'right' });
+    yPos += 5;
+
+    doc.text('Barauslagen / GGG:', summaryX, yPos);
+    doc.text(formatEuro(results.gggCents), rightMargin, yPos, { align: 'right' });
+    yPos += 7;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('GESAMTSUMME:', summaryX, yPos);
+    doc.text(formatEuro(results.totalCents), rightMargin, yPos, { align: 'right' });
+  }
+
+  // === FOOTER ===
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150);
+    doc.text('Fallübersicht | RATG/GGG Kostenrechner', leftMargin, pageHeight - 10);
+    if (totalPages > 1) {
+      doc.text(`Seite ${i}/${totalPages}`, rightMargin, pageHeight - 10, { align: 'right' });
+    }
+  }
+
+  // Download
+  const filename = gz
+    ? `Falluebersicht_${gz.replace(/[\/\s]/g, '_')}.pdf`
+    : `Falluebersicht_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(filename);
 }

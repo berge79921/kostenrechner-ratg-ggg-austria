@@ -1,10 +1,19 @@
-import { useState, useRef, useCallback } from 'react';
-import { Upload, FileText, X, Loader2, CheckCircle, AlertCircle, Home } from 'lucide-react';
+import { useState, useRef, useCallback, useMemo } from 'react';
+import { Upload, FileText, X, Loader2, CheckCircle, AlertCircle, Home, Zap } from 'lucide-react';
 import { extractExekutionDataFromPDF, fileToBase64, type ExtractedExekutionData } from '../lib/documentExtractor';
 import { saveHeimkanzlei } from '../lib/storage';
+import { mapExekutionTitelToLeistung, type MappedLeistung } from '../lib/leistungMapper';
+import type { ServiceType } from '../types';
+
+export interface ExekutionLeistungToAdd {
+  catalogId: string;
+  label: string;
+  serviceType: ServiceType;
+  esMultiplier: number;
+}
 
 interface Props {
-  onDataExtracted: (data: ExtractedExekutionData, saveAsHeimkanzlei: boolean) => void;
+  onDataExtracted: (data: ExtractedExekutionData, saveAsHeimkanzlei: boolean, leistung?: ExekutionLeistungToAdd) => void;
   apiKey: string;
 }
 
@@ -21,7 +30,15 @@ export function ExekutionUpload({ onDataExtracted, apiKey }: Props) {
   const [includeExekution, setIncludeExekution] = useState(true);
   const [includeKanzlei, setIncludeKanzlei] = useState(true);
   const [saveAsHeimkanzlei, setSaveAsHeimkanzlei] = useState(false);
+  // Leistung übernehmen (Exekutionsantrag)
+  const [addLeistung, setAddLeistung] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Erkannte Leistung basierend auf Exekutionstitel
+  const erkannteLeistung: MappedLeistung | null = useMemo(() => {
+    if (!extractedData || !extractedData.titelArt) return null;
+    return mapExekutionTitelToLeistung(extractedData.titelArt);
+  }, [extractedData]);
 
   const handleFile = useCallback((f: File) => {
     if (f.type !== 'application/pdf') {
@@ -101,7 +118,12 @@ export function ExekutionUpload({ onDataExtracted, apiKey }: Props) {
         });
       }
 
-      onDataExtracted(dataToApply, saveAsHeimkanzlei);
+      // Leistung mitgeben wenn aktiviert
+      const leistungToAdd: ExekutionLeistungToAdd | undefined = addLeistung && erkannteLeistung ? {
+        ...erkannteLeistung,
+      } : undefined;
+
+      onDataExtracted(dataToApply, saveAsHeimkanzlei, leistungToAdd);
       // Reset
       setFile(null);
       setExtractedData(null);
@@ -318,6 +340,31 @@ export function ExekutionUpload({ onDataExtracted, apiKey }: Props) {
               )}
             </div>
           )}
+
+          {/* LEISTUNG ÜBERNEHMEN - Exekutionsantrag */}
+          <div className="border border-indigo-200 rounded-lg p-3 bg-indigo-50/50">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={addLeistung}
+                onChange={(e) => setAddLeistung(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
+              />
+              <span className="text-sm font-medium text-indigo-700 flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5" />
+                Leistung übernehmen
+              </span>
+            </label>
+
+            {addLeistung && erkannteLeistung && (
+              <div className="mt-2 ml-6 p-2 bg-white rounded border border-indigo-100">
+                <p className="text-sm font-medium text-indigo-800">{erkannteLeistung.label}</p>
+                <p className="text-xs text-slate-500">
+                  BMGL: {formatCurrency(extractedData.kapitalforderung)} | ES: {erkannteLeistung.esMultiplier}× doppelt
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Buttons */}
           <div className="flex gap-2 pt-2">

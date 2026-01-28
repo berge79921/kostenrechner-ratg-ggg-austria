@@ -35,7 +35,7 @@ import {
 } from './types';
 import { calculateCosts, formatEuro } from './lib/calculator';
 import { SERVICE_CATALOG, getGroupedCatalog, getFilteredCatalog, CATEGORY_LABELS, CatalogCategory } from './lib/catalog';
-import { generateKostenverzeichnisPDF } from './lib/pdfGenerator';
+import { generateKostenverzeichnisPDF, generateFalluebersichtPDF, generateZivilprozessFalluebersichtPDF } from './lib/pdfGenerator';
 import { deriveGGGWithLabel } from './lib/ggg-derive';
 import { getGGG } from './lib/ggg';
 import { VOLLZUGSGEBUEHR_OPTIONS, getVollzugsgebuehr, VollzugsgebuehrType, isExekutionsantragService } from './lib/vollzugsgebuehren';
@@ -72,7 +72,7 @@ import { saveKanzleiData, loadKanzleiData, clearKanzleiData } from './lib/storag
 import { loadAllKostennoten, saveAllKostennoten, saveKostennote, deleteKostennote as deleteKostennoteFromStore, createNewKostennote } from './lib/kostennotenStore';
 import { CaseMetadataForm, PrintOptions } from './components/CaseMetadataForm';
 import { KostennotenList } from './components/KostennotenList';
-import { ExekutionUpload } from './components/ExekutionUpload';
+import { ExekutionUpload, type ExekutionLeistungToAdd } from './components/ExekutionUpload';
 import { ZivilprozessUpload, type LeistungToAdd, type SelectedParties } from './components/ZivilprozessUpload';
 import { DEFAULT_EXEKUTION_METADATA, DEFAULT_ZIVILPROZESS_METADATA, ExekutionMetadata, ZivilprozessMetadata, KlageArt, VertretenePartei } from './types';
 import type { ExtractedExekutionData, ExtractedZivilprozessData } from './lib/documentExtractor';
@@ -241,7 +241,7 @@ const App: React.FC = () => {
   };
 
   // Handler für extrahierte Exekutionsdaten aus PDF
-  const handleExekutionDataExtracted = (data: ExtractedExekutionData, _saveAsHeimkanzlei: boolean) => {
+  const handleExekutionDataExtracted = (data: ExtractedExekutionData, _saveAsHeimkanzlei: boolean, leistung?: ExekutionLeistungToAdd) => {
     // Titel-Art mappen
     const titelArtMap: Record<string, ExekutionMetadata['titelArt']> = {
       'Zahlungsbefehl': 'Zahlungsbefehl',
@@ -303,6 +303,22 @@ const App: React.FC = () => {
 
     // BMGL aus Kapitalforderung setzen
     setBmgl(data.kapitalforderung);
+
+    // Leistung hinzufügen (Exekutionsantrag)
+    if (leistung) {
+      const newService: LegalService = {
+        id: crypto.randomUUID(),
+        date: new Date().toISOString().split('T')[0],
+        label: leistung.label,
+        type: leistung.serviceType,
+        esMultiplier: leistung.esMultiplier,
+        includeErv: true,  // ERV bei Exekutionsantrag
+        isInitiating: true,  // Einleitender Schriftsatz
+        durationHours: 0,
+        catalogId: leistung.catalogId,
+      };
+      setServices(prev => [newService, ...prev]);
+    }
   };
 
   // Handler zum Leeren aller Exekutionsdaten (Felder bleiben erhalten, nur leer)
@@ -521,7 +537,18 @@ const App: React.FC = () => {
 
   // State aus aktiver Kostennote laden
   const loadKostennoteState = (k: SavedKostennote) => {
-    setCaseMetadata(k.metadata);
+    // Merge mit Defaults für neue Felder (z.B. drittschuldner)
+    setCaseMetadata({
+      ...k.metadata,
+      exekution: k.metadata.exekution ? {
+        ...DEFAULT_EXEKUTION_METADATA,
+        ...k.metadata.exekution,
+      } : undefined,
+      zivilprozess: k.metadata.zivilprozess ? {
+        ...DEFAULT_ZIVILPROZESS_METADATA,
+        ...k.metadata.zivilprozess,
+      } : undefined,
+    });
     setCaseMode(k.state.caseMode);
     setIsVatFree(k.state.isVatFree);
     setBmgl(k.state.bmgl);
@@ -1125,6 +1152,29 @@ const App: React.FC = () => {
     }
   };
 
+  // Fallübersicht PDF (Exekution oder Zivilprozess)
+  const handleFalluebersichtPDF = () => {
+    if (procedureType === ProcedureType.EXEKUTION && caseMetadata.exekution) {
+      generateFalluebersichtPDF({
+        caseMetadata: caseMetadata,
+        exekutionMetadata: caseMetadata.exekution,
+        bmgl: caseMetadata.exekution.kapitalforderung || bmgl,
+        results: results,
+        isVatFree: isVatFree,
+        additionalParties: additionalParties,
+      });
+    } else if (procedureType === ProcedureType.ZIVILPROZESS && caseMetadata.zivilprozess) {
+      generateZivilprozessFalluebersichtPDF({
+        caseMetadata: caseMetadata,
+        zivilprozessMetadata: caseMetadata.zivilprozess,
+        bmgl: bmgl,
+        results: results,
+        isVatFree: isVatFree,
+        additionalParties: additionalParties,
+      });
+    }
+  };
+
   const handleDownload = () => {
     // Bestimme die korrekten Werte je nach Modus
     const effectiveBmgl = caseMode === CaseMode.VSTRAF
@@ -1344,6 +1394,17 @@ const App: React.FC = () => {
                           + Tagsatzung
                         </span>
                       </label>
+                    )}
+                    {/* Fallübersicht Button (Exekution oder Zivilprozess) */}
+                    {((procedureType === ProcedureType.EXEKUTION && caseMetadata.exekution) ||
+                      (procedureType === ProcedureType.ZIVILPROZESS && caseMetadata.zivilprozess)) && (
+                      <button
+                        onClick={handleFalluebersichtPDF}
+                        className="flex items-center justify-center gap-2 px-4 py-4 bg-slate-600 hover:bg-slate-500 text-white font-bold transition-all"
+                        title="Fallübersicht als PDF"
+                      >
+                        <FileText className="h-5 w-5" /> Fallübersicht
+                      </button>
                     )}
                     {/* PDF Export Button */}
                     <button

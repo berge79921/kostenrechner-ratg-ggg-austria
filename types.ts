@@ -246,6 +246,91 @@ export interface VStrafService {
 // Exekutions-spezifische Metadaten (nur bei ProcedureType.EXEKUTION)
 export type TitelArt = 'Zahlungsbefehl' | 'Urteil' | 'Vergleich' | 'Beschluss' | 'Sonstig';
 
+// ============================================================================
+// DRITTSCHULDNER - § 294 EO (Forderungsexekution)
+// ============================================================================
+
+export type DrittschuldnerTyp = 'PVA' | 'Bank' | 'Arbeitgeber' | 'Sonstig';
+
+export interface Drittschuldner {
+  id: string;
+  typ: DrittschuldnerTyp;
+  name: string;
+  strasse: string;
+  plz: string;
+  ort: string;
+  iban?: string;
+  bic?: string;
+  rechtsgrund?: string;  // z.B. "Pension", "Gehalt", "Kontoguthaben"
+}
+
+export interface BekannteDrittschuldner {
+  id: string;
+  typ: DrittschuldnerTyp;
+  name: string;
+  strasse: string;
+  plz: string;
+  ort: string;
+  iban?: string;
+  bic?: string;
+}
+
+// Bekannte Drittschuldner (Dropdown-Vorauswahl)
+export const BEKANNTE_DRITTSCHULDNER: BekannteDrittschuldner[] = [
+  // PVA
+  {
+    id: 'pva',
+    typ: 'PVA',
+    name: 'Pensionsversicherungsanstalt',
+    strasse: 'Friedrich-Hillegeist-Straße 1',
+    plz: '1021',
+    ort: 'Wien',
+  },
+  // Banken (5 Demo, nur Raiffeisen mit vollständigen Daten)
+  {
+    id: 'raiffeisen_wienerwald',
+    typ: 'Bank',
+    name: 'Raiffeisenbank Wienerwald eGen',
+    strasse: 'Hauptstraße 62',
+    plz: '3021',
+    ort: 'Pressbaum',
+    iban: 'AT66 3225 0000 0070 6036',
+    bic: 'RLNWATWWGTD',
+  },
+  {
+    id: 'erste_bank',
+    typ: 'Bank',
+    name: 'Erste Bank der oesterreichischen Sparkassen AG',
+    strasse: 'Am Belvedere 1',
+    plz: '1100',
+    ort: 'Wien',
+  },
+  {
+    id: 'bank_austria',
+    typ: 'Bank',
+    name: 'UniCredit Bank Austria AG',
+    strasse: 'Rothschildplatz 1',
+    plz: '1020',
+    ort: 'Wien',
+  },
+  {
+    id: 'bawag',
+    typ: 'Bank',
+    name: 'BAWAG P.S.K. Bank für Arbeit und Wirtschaft und Österreichische Postsparkasse AG',
+    strasse: 'Wiedner Gürtel 11',
+    plz: '1100',
+    ort: 'Wien',
+  },
+  {
+    id: 'raiffeisen_noe_wien',
+    typ: 'Bank',
+    name: 'Raiffeisen Landesbank Niederösterreich-Wien AG',
+    strasse: 'Friedrich-Wilhelm-Raiffeisen-Platz 1',
+    plz: '1020',
+    ort: 'Wien',
+  },
+];
+
 export interface FruehereKosten {
   gericht: string;
   gz: string;
@@ -278,6 +363,9 @@ export interface ExekutionMetadata {
 
   // Frühere Exekutionen (optional)
   fruehereKosten: FruehereKosten[];
+
+  // Drittschuldner (§ 294 EO)
+  drittschuldner: Drittschuldner[];
 }
 
 export const DEFAULT_EXEKUTION_METADATA: ExekutionMetadata = {
@@ -298,6 +386,7 @@ export const DEFAULT_EXEKUTION_METADATA: ExekutionMetadata = {
   zinsenAb: '',
   kostenAusTitel: 0,
   fruehereKosten: [],
+  drittschuldner: [],
 };
 
 // ============================================================================

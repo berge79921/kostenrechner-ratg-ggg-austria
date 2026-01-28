@@ -120,6 +120,25 @@ export function berechneHalbeStunden(
 }
 
 /**
+ * Mappt Exekutionstitel auf Exekutionsantrag-Leistung.
+ * Urteil, Vergleich, Zahlungsbefehl → Exekutionsantrag TP 2
+ */
+export function mapExekutionTitelToLeistung(
+  titelArt: string
+): MappedLeistung {
+  const esMultiplier = 2; // Doppelter ES per Default
+
+  // Exekutionsantrag ist immer TP 2 (einfacher Schriftsatz)
+  // Die Bemessungsgrundlage wird später in der App aus der Kapitalforderung berechnet
+  return {
+    catalogId: 'ex_antrag',
+    label: 'Exekutionsantrag',
+    serviceType: ServiceType.PLEADING_TP2,
+    esMultiplier,
+  };
+}
+
+/**
  * Bestimmt Leistung basierend auf Dokumenttyp.
  * Delegiert an mapDokumentToLeistung oder mapProtokollToLeistung.
  */
